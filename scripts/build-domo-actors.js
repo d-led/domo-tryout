@@ -32,11 +32,53 @@ if (existsSync(srcDir)) {
   }
 }
 
-// Source files not in node_modules
-// This happens with npm (but not yarn) - npm respects "files" field even for Git installs
-console.log('⚠️  Source files not found in node_modules')
-console.log('   npm installs from Git only include files listed in package.json "files" field')
-console.log('   Consider using yarn instead: yarn add git+https://github.com/VaughnVernon/DomoActors.git')
-console.log('   Or use a local clone: npm install ./path/to/DomoActors')
-process.exit(1)
+// Source files not in node_modules (npm only includes "files" field from Git)
+// Clone the repo temporarily to build it
+console.log('📦 Cloning domo-actors to build dist...')
+
+try {
+  // Clean up any previous clone
+  if (existsSync(tempCloneDir)) {
+    rmSync(tempCloneDir, { recursive: true, force: true })
+  }
+  mkdirSync(tempCloneDir, { recursive: true })
+  
+  // Clone the repo (shallow clone for speed)
+  execSync('git clone --depth 1 https://github.com/VaughnVernon/DomoActors.git .', {
+    cwd: tempCloneDir,
+    stdio: 'pipe'
+  })
+  
+  // Install and build
+  console.log('🔨 Building domo-actors...')
+  execSync('npm install', { cwd: tempCloneDir, stdio: 'pipe' })
+  execSync('npm run build', { cwd: tempCloneDir, stdio: 'inherit' })
+  
+  // Copy dist and src to node_modules
+  const { cpSync } = await import('fs')
+  const srcDist = join(tempCloneDir, 'dist')
+  const srcSrc = join(tempCloneDir, 'src')
+  const targetDist = join(domoActorsDir, 'dist')
+  const targetSrc = join(domoActorsDir, 'src')
+  
+  if (existsSync(srcDist)) {
+    cpSync(srcDist, targetDist, { recursive: true })
+    console.log('✓ domo-actors dist copied to node_modules')
+  }
+  
+  if (existsSync(srcSrc)) {
+    cpSync(srcSrc, targetSrc, { recursive: true })
+    console.log('✓ domo-actors src copied to node_modules')
+  }
+  
+  // Clean up temp clone
+  rmSync(tempCloneDir, { recursive: true, force: true })
+  
+} catch (error) {
+  console.error('✗ Failed to build domo-actors:', error.message)
+  if (existsSync(tempCloneDir)) {
+    rmSync(tempCloneDir, { recursive: true, force: true })
+  }
+  process.exit(1)
+}
 

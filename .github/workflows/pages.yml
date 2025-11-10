@@ -25,11 +25,8 @@ jobs:
         with:
           node-version: '20'
       
-      - name: Setup Yarn
-        run: corepack enable
-      
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: npm ci
       
       - name: Build
         run: npm run build

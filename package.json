@@ -2,7 +2,9 @@
   "name": "domo-tryout",
   "version": "1.0.0",
   "type": "module",
+  "license": "MIT",
   "scripts": {
+    "postinstall": "node scripts/build-domo-actors.js",
     "build": "node build.js",
     "dev": "node build.js --watch"
   },
