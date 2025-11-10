@@ -1,0 +1,15 @@
+{
+  "name": "domo-tryout",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "node build.js",
+    "dev": "node build.js --watch"
+  },
+  "dependencies": {
+    "domo-actors": "git+https://github.com/VaughnVernon/DomoActors.git"
+  },
+  "devDependencies": {
+    "esbuild": "^0.27.0"
+  }
+}
