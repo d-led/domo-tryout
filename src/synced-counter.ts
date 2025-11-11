@@ -33,7 +33,8 @@ function resolveWsServer(): string {
   return ''
 }
 const WS_SERVER = resolveWsServer()
-const defaultWsServer = 'ws://localhost:9870'
+// __WS_SERVER_URL__ will be replaced during build with production URL, or fallback to localhost
+const defaultWsServer = '__WS_SERVER_URL__' || 'ws://localhost:9870'
 
 // Use params option to pass secret (y-websocket will add it as query param to the room URL)
 const wsProvider = new WebsocketProvider(WS_SERVER || defaultWsServer, 'domo-actors-counter', doc, {

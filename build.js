@@ -45,17 +45,27 @@ async function buildExtractEmbedded() {
 }
 
 const wsSecret = process.env.WS_SECRET || 'wss-changeme' // Default for local dev
+const wsServerUrl = process.env.WS_SERVER_URL || '' // Render.com WebSocket server URL for production
 
-// Plugin to replace secret placeholder
-const secretReplacePlugin = {
-  name: 'secret-replace',
+// Plugin to replace placeholders
+const replacePlugin = {
+  name: 'replace',
   setup(build) {
     build.onLoad({ filter: /synced-counter\.ts$/ }, async (args) => {
-      const contents = readFileSync(args.path, 'utf8')
+      let contents = readFileSync(args.path, 'utf8')
       // Replace '__WS_SECRET__' with the actual secret (keeping quotes)
-      const replaced = contents.replace(/'__WS_SECRET__'/g, `'${wsSecret}'`)
+      contents = contents.replace(/'__WS_SECRET__'/g, `'${wsSecret}'`)
+      // Replace '__WS_SERVER_URL__' with the actual server URL (convert https:// to wss://)
+      if (wsServerUrl) {
+        const wssUrl = wsServerUrl.replace(/^https?:\/\//, 'wss://')
+        // Replace '__WS_SERVER_URL__' with the actual URL (without quotes, they're already in source)
+        contents = contents.replace(/__WS_SERVER_URL__/g, wssUrl)
+      } else {
+        // For local dev, replace with empty string so it falls back to localhost via ||
+        contents = contents.replace(/__WS_SERVER_URL__/g, '')
+      }
       return {
-        contents: replaced,
+        contents,
         loader: 'ts',
       }
     })
@@ -77,7 +87,7 @@ const jsOptions = {
   alias: {
     'domo-actors': './node_modules/domo-actors/src/actors/index.ts',
   },
-  plugins: [secretReplacePlugin],
+  plugins: [replacePlugin],
 }
 
 const cssOptions = {
