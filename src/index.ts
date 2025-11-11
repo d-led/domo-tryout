@@ -1,17 +1,37 @@
 import { Actor, Protocol, stage } from 'domo-actors'
+import { Counter } from './Counter.js'
+import { createSyncedCounter } from './synced-counter.js'
 
-interface Counter {
-  increment(): void
-  decrement(): void
+// Create shared stage
+const appStage = stage()
+if (typeof window !== 'undefined') {
+  (window as any).appStage = appStage
 }
 
+// Create synced counter first
+const syncedCounter = createSyncedCounter()
+
+// embed-begin
 class CounterActor extends Actor implements Counter {
   private count = 0
+  private syncedCounter: Counter
 
-  constructor() { super() }
+  constructor(syncedCounter: Counter) {
+    super()
+    this.syncedCounter = syncedCounter
+  }
 
-  increment() { this.count++; this.update() }
-  decrement() { this.count--; this.update() }
+  increment() { 
+    this.count++;
+    this.update();
+    this.syncedCounter.increment()
+  }
+  
+  decrement() { 
+    this.count--;
+    this.update();
+    this.syncedCounter.decrement()
+  }
 
   private update() {
     const el = document.getElementById('count')
@@ -19,10 +39,15 @@ class CounterActor extends Actor implements Counter {
   }
 }
 
-const counter = stage().actorFor<Counter>({
-  instantiator: () => ({ instantiate: () => new CounterActor() }),
+const counter = appStage.actorFor<Counter>({
+  instantiator: () => ({ instantiate: () => new CounterActor(syncedCounter) }),
   type: () => 'Counter'
 })
 
-setInterval(() => counter.increment(), 1000)
-if (typeof window !== 'undefined') (window as any).counter = counter
+setInterval(() => {
+  counter.increment()
+}, 1000)
+// embed-end
+if (typeof window !== 'undefined') {
+  (window as any).counter = counter
+}

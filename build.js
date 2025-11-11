@@ -16,11 +16,16 @@ function copyHtml() {
 }
 
 function copySource() {
-  const src = 'src/index.ts'
-  const dest = 'dist/index.ts'
-  if (existsSync(src)) {
-    copyFileSync(src, dest)
-  }
+  const files = [
+    { src: 'src/Counter.ts', dest: 'dist/Counter.ts' },
+    { src: 'src/index.ts', dest: 'dist/index.ts' },
+    { src: 'src/synced-counter.ts', dest: 'dist/synced-counter.ts' }
+  ]
+  files.forEach(({ src, dest }) => {
+    if (existsSync(src)) {
+      copyFileSync(src, dest)
+    }
+  })
 }
 
 const jsOptions = {
@@ -56,36 +61,40 @@ async function build() {
   ])
 }
 
-if (isWatch) {
-  const jsCtx = await esbuild.context(jsOptions)
-  const cssCtx = await esbuild.context(cssOptions)
-  
-  await Promise.all([jsCtx.rebuild(), cssCtx.rebuild()])
-  copyHtml()
-  copySource()
-  const { port } = await jsCtx.serve({ servedir: 'dist', port: 8000 })
-  console.log(`http://localhost:${port}`)
-  
-  await Promise.all([jsCtx.watch(), cssCtx.watch()])
-  
-  // Watch HTML and source files
-  const { watch } = await import('fs')
-  watch('index.html', () => {
+  if (isWatch) {
+    const jsCtx = await esbuild.context(jsOptions)
+    const cssCtx = await esbuild.context(cssOptions)
+    
+    await Promise.all([jsCtx.rebuild(), cssCtx.rebuild()])
     copyHtml()
-    console.log('✓ HTML updated')
-  })
-  watch('src/index.ts', () => {
     copySource()
-    console.log('✓ Source updated')
-  })
-  
-  process.on('SIGINT', async () => {
-    await Promise.all([jsCtx.dispose(), cssCtx.dispose()])
-    process.exit(0)
-  })
-  
-  await new Promise(() => {})
-} else {
+    const { port } = await jsCtx.serve({ servedir: 'dist', port: 8000 })
+    console.log(`http://localhost:${port}`)
+    
+    await Promise.all([jsCtx.watch(), cssCtx.watch()])
+    
+    // Watch HTML and source files
+    const { watch } = await import('fs')
+    watch('index.html', () => {
+      copyHtml()
+      console.log('✓ HTML updated')
+    })
+    watch('src/index.ts', () => {
+      copySource()
+      console.log('✓ Source updated')
+    })
+    watch('src/synced-counter.ts', () => {
+      copySource()
+      console.log('✓ Source updated')
+    })
+    
+    process.on('SIGINT', async () => {
+      await Promise.all([jsCtx.dispose(), cssCtx.dispose()])
+      process.exit(0)
+    })
+    
+    await new Promise(() => {})
+  } else {
   try {
     await build()
     copyHtml()

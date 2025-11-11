@@ -24,11 +24,37 @@
               </svg>This Demo
             </a>
           </h5>
-          <h1 class="display-1 mb-4" id="count">0</h1>
-          <button class="btn btn-danger btn-lg" onclick="counter.decrement()">-</button>
+          <div class="row">
+            <div class="col-md-6 mb-4">
+              <h6 class="text-muted mb-2">Local Counter</h6>
+              <h1 class="display-1 mb-4" id="count">0</h1>
+              <button class="btn btn-danger btn-lg" onclick="counter.decrement()">-</button>
+            </div>
+                  <div class="col-md-6 mb-4">
+                    <h6 class="text-muted mb-2">Synced Counter <small>(shared across users)</small> <span class="badge bg-info" id="peer-count">1</span> <small>peer(s)</small></h6>
+                    <h1 class="display-1 mb-4" id="synced-count">0</h1>
+                    <button class="btn btn-danger btn-lg" onclick="syncedCounter.decrement()">-</button>
+                    <div class="mt-2">
+                      <small class="text-muted">Signaling servers:</small>
+                      <div id="signaling-servers" class="small text-muted">Connecting...</div>
+                    </div>
+                  </div>
+          </div>
         </div>
 
         <div class="window">
+          <div class="window-header">
+            <div class="window-dot dot-red"></div>
+            <div class="window-dot dot-yellow"></div>
+            <div class="window-dot dot-green"></div>
+            <div class="window-title">src/Counter.ts</div>
+          </div>
+          <div class="window-body">
+            <pre><code class="language-typescript" id="counter-interface-code">Loading...</code></pre>
+          </div>
+        </div>
+
+        <div class="window mt-3">
           <div class="window-header">
             <div class="window-dot dot-red"></div>
             <div class="window-dot dot-yellow"></div>
@@ -58,11 +84,47 @@
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
   <script>
+    function extractEmbedded(code) {
+      const beginMarker = '// embed-begin'
+      const endMarker = '// embed-end'
+      const beginIdx = code.indexOf(beginMarker)
+      const endIdx = code.indexOf(endMarker)
+      
+      if (beginIdx === -1 || endIdx === -1) {
+        return code // Return full code if markers not found
+      }
+      
+      // Extract the embedded section
+      const embedded = code.substring(beginIdx + beginMarker.length, endIdx).trim()
+      
+      // Process imports: keep only domo-actors imports, replace others with //...
+      const lines = code.substring(0, beginIdx).split('\n')
+      const domoImports = lines.filter(line => line.includes('domo-actors'))
+      const otherImports = lines.filter(line => 
+        line.trim().startsWith('import') && !line.includes('domo-actors')
+      )
+      
+      let result = domoImports.join('\n')
+      if (otherImports.length > 0) {
+        result += '\n//...\n'
+      }
+      result += '\n' + embedded
+      
+      return result
+    }
+    
+    fetch('Counter.ts')
+      .then(r => r.text())
+      .then(code => {
+        const el = document.getElementById('counter-interface-code')
+        el.textContent = code
+        Prism.highlightElement(el)
+      })
     fetch('index.ts')
       .then(r => r.text())
       .then(code => {
         const el = document.getElementById('source-code')
-        el.textContent = code
+        el.textContent = extractEmbedded(code)
         Prism.highlightElement(el)
       })
   </script>
