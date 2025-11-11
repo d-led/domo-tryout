@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net"
 	"net/http"
@@ -86,6 +87,7 @@ type ConnectionActor struct {
 	maxRate        int         // Messages per second
 	windowDuration time.Duration
 	lastActivity   time.Time // Last message received time
+	authenticated  bool      // Whether client has sent valid auth message
 }
 
 // Ensure ConnectionActor implements Connection interface
@@ -244,6 +246,52 @@ func (c *ConnectionActor) Start() {
 
 	log.Printf("Client connected to room: %s", c.room)
 
+	// Get expected secret
+	secret := getEnv("WS_SECRET")
+	if secret == "" {
+		secret = defaultSecret
+	}
+
+	// Wait for auth message (first message must be auth)
+	authTimeout := time.NewTimer(5 * time.Second)
+	authReceived := make(chan bool, 1)
+
+	go func() {
+		c.conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+		messageType, message, err := c.conn.ReadMessage()
+		if err != nil {
+			authReceived <- false
+			return
+		}
+
+		// Check if first message is auth
+		if messageType == websocket.TextMessage {
+			var authMsg map[string]interface{}
+			if err := json.Unmarshal(message, &authMsg); err == nil {
+				if authMsg["type"] == "auth" && authMsg["secret"] == secret {
+					c.authenticated = true
+					authReceived <- true
+					return
+				}
+			}
+		}
+		authReceived <- false
+	}()
+
+	select {
+	case authenticated := <-authReceived:
+		if !authenticated {
+			log.Printf("Rejected connection: invalid or missing auth message")
+			c.conn.Close()
+			return
+		}
+		log.Printf("Client authenticated in room: %s", c.room)
+	case <-authTimeout.C:
+		log.Printf("Rejected connection: auth timeout")
+		c.conn.Close()
+		return
+	}
+
 	for {
 		// Set read deadline to detect inactive connections (5 seconds)
 		c.conn.SetReadDeadline(time.Now().Add(5 * time.Second))
@@ -296,22 +344,9 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check shared secret
-	secret := getEnv("WS_SECRET")
-	if secret == "" {
-		secret = defaultSecret
-	}
-
-	providedSecret := r.URL.Query().Get("secret")
-	if providedSecret == "" {
-		providedSecret = r.Header.Get("X-WS-Secret")
-	}
-
-	if providedSecret != secret {
-		log.Printf("Rejected connection: invalid secret")
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
+	// Note: Browser WebSocket API doesn't support custom headers
+	// So we'll accept the connection and validate secret from first message
+	// This is less secure than header-based auth, but necessary for browser compatibility
 
 	// Check capacity BEFORE upgrading connection (can't write HTTP errors after upgrade)
 	capacityChan := make(chan bool, 1)

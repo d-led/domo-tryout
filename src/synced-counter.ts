@@ -36,11 +36,103 @@ const WS_SERVER = resolveWsServer()
 // __WS_SERVER_URL__ will be replaced during build with production URL, or fallback to localhost
 const defaultWsServer = '__WS_SERVER_URL__' || 'ws://localhost:9870'
 
-// Use params option to pass secret (y-websocket will add it as query param to the room URL)
-const wsProvider = new WebsocketProvider(WS_SERVER || defaultWsServer, 'domo-actors-counter', doc, {
-  params: {
-    secret: WS_SECRET
+// Custom WebSocket that sends secret in header via first message
+// Browser WebSocket API doesn't support custom headers, so we send auth as first message
+// Server will validate and close connection if invalid
+class HeaderWebSocket {
+  private ws: WebSocket | null = null
+  private url: string
+  private protocols: string[]
+  private readyState: number = WebSocket.CONNECTING
+  private eventHandlers: { [key: string]: ((event: any) => void)[] } = {}
+  private authSent = false
+  private messageQueue: (string | ArrayBuffer | Blob)[] = []
+
+  static readonly CONNECTING = 0
+  static readonly OPEN = 1
+  static readonly CLOSING = 2
+  static readonly CLOSED = 3
+
+  constructor(url: string | URL, protocols: string[] = []) {
+    this.url = typeof url === 'string' ? url : url.toString()
+    this.protocols = Array.isArray(protocols) ? protocols : [protocols]
+    this.ws = new WebSocket(this.url, this.protocols)
+    this.setupNativeWebSocket()
   }
+
+  private setupNativeWebSocket() {
+    if (!this.ws) return
+
+    this.ws.onopen = (event) => {
+      // Send auth as first message immediately after connection
+      if (!this.authSent) {
+        this.authSent = true
+        // Send auth message before any other messages
+        const authMsg = JSON.stringify({ type: 'auth', secret: WS_SECRET })
+        this.ws!.send(authMsg)
+        // Send queued messages
+        this.messageQueue.forEach(msg => this.ws!.send(msg))
+        this.messageQueue = []
+      }
+      this.readyState = WebSocket.OPEN
+      this.emit('open', event)
+    }
+
+    this.ws.onmessage = (event) => {
+      this.emit('message', event)
+    }
+
+    this.ws.onerror = (event) => {
+      this.emit('error', event)
+    }
+
+    this.ws.onclose = (event) => {
+      this.readyState = WebSocket.CLOSED
+      this.emit('close', event)
+    }
+  }
+
+  private emit(event: string, data: any) {
+    const handlers = this.eventHandlers[event] || []
+    handlers.forEach(handler => handler(data))
+  }
+
+  addEventListener(event: string, handler: (event: any) => void) {
+    if (!this.eventHandlers[event]) {
+      this.eventHandlers[event] = []
+    }
+    this.eventHandlers[event].push(handler)
+  }
+
+  removeEventListener(event: string, handler: (event: any) => void) {
+    const handlers = this.eventHandlers[event]
+    if (handlers) {
+      const index = handlers.indexOf(handler)
+      if (index > -1) handlers.splice(index, 1)
+    }
+  }
+
+  send(data: string | ArrayBuffer | Blob) {
+    if (this.ws && this.readyState === WebSocket.OPEN && this.authSent) {
+      this.ws.send(data)
+    } else {
+      // Queue messages until auth is sent
+      this.messageQueue.push(data)
+    }
+  }
+
+  close() {
+    if (this.ws) {
+      this.readyState = WebSocket.CLOSING
+      this.ws.close()
+    }
+  }
+}
+
+// Use WebSocket provider with custom WebSocket that sends secret as first message
+// Browser WebSocket API limitation: can't set custom headers, so we send auth as first message
+const wsProvider = new WebsocketProvider(WS_SERVER || defaultWsServer, 'domo-actors-counter', doc, {
+  WebSocketPolyfill: HeaderWebSocket as any
 })
 const awareness = wsProvider.awareness
 
