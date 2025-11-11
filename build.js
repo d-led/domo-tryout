@@ -47,6 +47,13 @@ async function buildExtractEmbedded() {
 const wsSecret = process.env.WS_SECRET || 'wss-changeme' // Default for local dev
 const wsServerUrl = process.env.WS_SERVER_URL || '' // Render.com WebSocket server URL for production
 
+// Debug logging
+if (process.env.CI) {
+  console.log('Build environment:')
+  console.log('  WS_SECRET:', wsSecret ? '***set***' : 'NOT SET')
+  console.log('  WS_SERVER_URL:', wsServerUrl || 'NOT SET')
+}
+
 // Plugin to replace placeholders
 const replacePlugin = {
   name: 'replace',
