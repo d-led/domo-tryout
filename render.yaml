@@ -4,11 +4,13 @@ services:
     env: go
     plan: free
     rootDir: server
-    buildCommand: go mod download && go build -o server
+    buildCommand: go mod download && CGO_ENABLED=0 go build -o server
     startCommand: ./server
     envVars:
       - key: PORT
         value: 10000
+      - key: CGO_ENABLED
+        value: "0"
       # WS_SECRET should be set in Render.com dashboard environment variables, not here
       # It must match the GitHub secret WS_SECRET used for client builds
 
