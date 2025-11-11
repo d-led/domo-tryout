@@ -9,7 +9,7 @@ Minimal Go-based WebSocket server for Yjs synchronization.
 3. Connect your GitHub repo
 4. Render will detect `render.yaml` and deploy automatically
 5. Your server will be available at `wss://your-service.onrender.com`
-6. **Important**: After deployment, set the `WS_SECRET` environment variable in Render dashboard to match the secret in your client code (or update client code to use the generated secret)
+6. **Important**: The `WS_SECRET` in `render.yaml` must match the `WS_SECRET` GitHub secret used to build the client. Update both to a secure value.
 
 ## Usage
 

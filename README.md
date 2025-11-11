@@ -39,4 +39,9 @@ cd server
 go run .       # Runs on :9870
 ```
 
-Deploy to Render.com via `server/render.yaml`.
+Deploy to Render.com via `render.yaml` (root directory).
+
+**Security**: Set `WS_SECRET` in both:
+- GitHub repository secrets (for client build)
+- Render.com environment variables (for server)
+Both must match for authentication to work.
