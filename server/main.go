@@ -285,7 +285,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	roomName := r.URL.Path[1:] // Remove leading /
 	if roomName == "" {
-		http.Error(w, "Room name required", http.StatusBadRequest)
+		http.Error(w, "Bad request, sorry", http.StatusBadRequest)
 		return
 	}
 
