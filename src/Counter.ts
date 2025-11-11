@@ -3,3 +3,7 @@ export interface Counter {
   decrement(): void
 }
 
+export interface SyncedCounter extends Counter {
+  updateFromRemote(value: number): void
+}
+

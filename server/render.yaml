@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: y-websocket-server
+    env: go
+    plan: free
+    buildCommand: go mod download && go build -o server
+    startCommand: ./server
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: WS_SECRET
+        value: CHANGE_ME_42 # Provide this in Render dashboard or via blueprint overrides

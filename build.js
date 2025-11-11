@@ -28,6 +28,40 @@ function copySource() {
   })
 }
 
+async function buildExtractEmbedded() {
+  // Build extractEmbedded as a standalone bundle for use in index.html
+  await esbuild.build({
+    entryPoints: ['src/extract-embedded.ts'],
+    bundle: true,
+    outfile: 'dist/extract-embedded.js',
+    platform: 'browser',
+    format: 'iife',
+    globalName: 'ExtractEmbedded',
+    target: 'es2022',
+    loader: {
+      '.ts': 'ts',
+    },
+  })
+}
+
+const wsSecret = process.env.WS_SECRET || 'wss-changeme' // Default for local dev
+
+// Plugin to replace secret placeholder
+const secretReplacePlugin = {
+  name: 'secret-replace',
+  setup(build) {
+    build.onLoad({ filter: /synced-counter\.ts$/ }, async (args) => {
+      const contents = readFileSync(args.path, 'utf8')
+      // Replace '__WS_SECRET__' with the actual secret (keeping quotes)
+      const replaced = contents.replace(/'__WS_SECRET__'/g, `'${wsSecret}'`)
+      return {
+        contents: replaced,
+        loader: 'ts',
+      }
+    })
+  },
+}
+
 const jsOptions = {
   entryPoints: ['src/index.ts'],
   bundle: true,
@@ -43,6 +77,7 @@ const jsOptions = {
   alias: {
     'domo-actors': './node_modules/domo-actors/src/actors/index.ts',
   },
+  plugins: [secretReplacePlugin],
 }
 
 const cssOptions = {
@@ -57,7 +92,8 @@ const cssOptions = {
 async function build() {
   await Promise.all([
     esbuild.build(jsOptions),
-    esbuild.build(cssOptions)
+    esbuild.build(cssOptions),
+    buildExtractEmbedded()
   ])
 }
 
@@ -65,13 +101,26 @@ async function build() {
     const jsCtx = await esbuild.context(jsOptions)
     const cssCtx = await esbuild.context(cssOptions)
     
-    await Promise.all([jsCtx.rebuild(), cssCtx.rebuild()])
+    const extractCtx = await esbuild.context({
+      entryPoints: ['src/extract-embedded.ts'],
+      bundle: true,
+      outfile: 'dist/extract-embedded.js',
+      platform: 'browser',
+      format: 'iife',
+      globalName: 'ExtractEmbedded',
+      target: 'es2022',
+      loader: {
+        '.ts': 'ts',
+      },
+    })
+    
+    await Promise.all([jsCtx.rebuild(), cssCtx.rebuild(), extractCtx.rebuild()])
     copyHtml()
     copySource()
     const { port } = await jsCtx.serve({ servedir: 'dist', port: 8000 })
     console.log(`http://localhost:${port}`)
     
-    await Promise.all([jsCtx.watch(), cssCtx.watch()])
+    await Promise.all([jsCtx.watch(), cssCtx.watch(), extractCtx.watch()])
     
     // Watch HTML and source files
     const { watch } = await import('fs')
@@ -89,7 +138,7 @@ async function build() {
     })
     
     process.on('SIGINT', async () => {
-      await Promise.all([jsCtx.dispose(), cssCtx.dispose()])
+      await Promise.all([jsCtx.dispose(), cssCtx.dispose(), extractCtx.dispose()])
       process.exit(0)
     })
     

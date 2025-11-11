@@ -29,6 +29,8 @@ jobs:
         run: npm ci
       
       - name: Build
+        env:
+          WS_SECRET: ${{ secrets.WS_SECRET }}
         run: npm run build
       
       - name: Setup Pages
