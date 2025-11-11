@@ -9,6 +9,6 @@ services:
     envVars:
       - key: PORT
         value: 10000
-      - key: WS_SECRET
-        value: CHANGE_ME_42 # Set this to your secret value (must match GitHub secret WS_SECRET)
+      # WS_SECRET should be set in Render.com dashboard environment variables, not here
+      # It must match the GitHub secret WS_SECRET used for client builds
 
