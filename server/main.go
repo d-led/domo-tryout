@@ -20,6 +20,9 @@ const allowedOrigin = "https://d-led.github.io"
 const allowedRoom = "domo-actors-counter"
 const defaultSecret = "wss-changeme" // Change this in production via env var
 
+// Version is set via linker flags during build: -ldflags "-X main.version=..."
+var version = "dev" // Default value if not set during build
+
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		origin := r.Header.Get("Origin")
@@ -322,6 +325,12 @@ func (c *ConnectionActor) Start() {
 var srv Server = NewServerActor()
 
 func handleWebSocket(w http.ResponseWriter, r *http.Request) {
+	// Exclude /version endpoint from WebSocket handling
+	if r.URL.Path == "/version" {
+		http.NotFound(w, r)
+		return
+	}
+
 	// Basic rate limiting per IP to mitigate bots
 	if reached, limit, remaining, reset := rateLimit(r); reached {
 		w.Header().Set("X-RateLimit-Limit", limit)
@@ -340,7 +349,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	// Only allow the specific room
 	if roomName != allowedRoom {
 		log.Printf("Rejected connection to room: %s (only %s allowed)", roomName, allowedRoom)
-		http.Error(w, "Room not allowed", http.StatusForbidden)
+		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
 
@@ -410,8 +419,9 @@ func main() {
 	}()
 
 	http.HandleFunc("/", handleWebSocket)
+	http.HandleFunc("/version", handleVersion)
 
-	log.Printf("Yjs WebSocket server starting on port %s", port)
+	log.Printf("Yjs WebSocket server starting on port %s (version: %s)", port, version)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
@@ -447,4 +457,10 @@ func rateLimit(r *http.Request) (reached bool, limit, remaining, reset string) {
 		return false, "", "", ""
 	}
 	return ctx.Reached, strconv.FormatInt(ctx.Limit, 10), strconv.FormatInt(ctx.Remaining, 10), strconv.FormatInt(ctx.Reset, 10)
+}
+
+func handleVersion(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(version))
 }

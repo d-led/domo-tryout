@@ -11,6 +11,9 @@ function copyHtml() {
     // Fix paths for dist
     content = content.replace('src="dist/bundle.js"', 'src="bundle.js"')
     content = content.replace('href="dist/style.css"', 'href="style.css"')
+    // Inject version into footer placeholder
+    const version = process.env.VERSION || 'dev'
+    content = content.replace('_unknown_', version)
     writeFileSync(dest, content)
   }
 }

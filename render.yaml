@@ -4,7 +4,13 @@ services:
     env: go
     plan: free
     rootDir: server
-    buildCommand: go mod download && CGO_ENABLED=0 go build -o server
+    buildCommand: |
+      GIT_REF=${RENDER_GIT_BRANCH:-unknown}
+      GIT_COMMIT=${RENDER_GIT_COMMIT:-unknown}
+      # Use short commit hash (first 7 chars) if available
+      GIT_COMMIT_SHORT=$(echo ${GIT_COMMIT} | cut -c1-7)
+      VERSION="${GIT_REF}-${GIT_COMMIT_SHORT}"
+      go mod download && CGO_ENABLED=0 go build -ldflags "-X main.version=${VERSION}" -o server
     startCommand: ./server
     envVars:
       - key: PORT

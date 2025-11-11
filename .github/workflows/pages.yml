@@ -17,6 +17,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    environment: github-pages
     steps:
       - uses: actions/checkout@v4
       
@@ -32,10 +33,12 @@ jobs:
         env:
           WS_SECRET: ${{ secrets.WS_SECRET }}
           WS_SERVER_URL: ${{ secrets.WS_SERVER_URL }}
+          VERSION: ${{ github.ref_name }}-${{ github.sha }}
         run: |
           echo "WS_SECRET is set: $([ -n "$WS_SECRET" ] && echo 'yes' || echo 'no')"
           echo "WS_SERVER_URL is set: $([ -n "$WS_SERVER_URL" ] && echo 'yes' || echo 'no')"
           echo "WS_SERVER_URL value: ${WS_SERVER_URL:0:50}..."
+          echo "VERSION: $VERSION"
           npm run build
       
       - name: Setup Pages

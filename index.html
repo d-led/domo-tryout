@@ -99,5 +99,20 @@
       })
   </script>
   <script src="bundle.js"></script>
+  <footer class="text-center mt-5 mb-3 text-muted small">
+    <div>Server version: <span id="server-version">loading...</span></div>
+    <div>Client version: _unknown_</div>
+  </footer>
+  <script>
+    // Fetch server version on load
+    fetch('https://y-websocket-server-asaq.onrender.com/version')
+      .then(r => r.text())
+      .then(v => {
+        document.getElementById('server-version').textContent = v || 'unknown'
+      })
+      .catch(() => {
+        document.getElementById('server-version').textContent = 'unavailable'
+      })
+  </script>
 </body>
 </html>
