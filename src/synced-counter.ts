@@ -121,10 +121,12 @@ class HeaderWebSocket {
     }
 
     this.ws.onmessage = (event) => {
+      // Forward the message event - WebsocketProvider needs this to sync awareness
       this.emit('message', event)
     }
     
     // Ensure the provider can access the WebSocket instance
+    // WebsocketProvider checks ws.readyState, so expose it
     ;(this as any).ws = this.ws
 
     this.ws.onerror = (event) => {
@@ -150,14 +152,24 @@ class HeaderWebSocket {
 
   private emit(event: string, data: any) {
     const handlers = this.eventHandlers[event] || []
-    handlers.forEach(handler => handler(data))
+    handlers.forEach(handler => {
+      try {
+        handler(data)
+      } catch (e) {
+        console.error(`Error in ${event} handler:`, e)
+      }
+    })
   }
-
-  addEventListener(event: string, handler: (event: any) => void) {
+  
+  on(event: string, handler: (event: any) => void) {
     if (!this.eventHandlers[event]) {
       this.eventHandlers[event] = []
     }
     this.eventHandlers[event].push(handler)
+  }
+  
+  addEventListener(event: string, handler: (event: any) => void) {
+    this.on(event, handler)
   }
 
   removeEventListener(event: string, handler: (event: any) => void) {
@@ -197,7 +209,10 @@ if (typeof window !== 'undefined') {
 const wsProvider = new WebsocketProvider(actualWsServer, 'domo-actors-counter', doc, {
   WebSocketPolyfill: HeaderWebSocket as any,
   // Ensure the provider can access the underlying WebSocket for status detection
-  params: {}
+  params: {},
+  // Enable reconnection with exponential backoff (default is true, but be explicit)
+  resyncInterval: 5000, // Resync every 5 seconds if connection is lost
+  maxBackoffTime: 25000, // Max backoff time for reconnection attempts
 })
 const awareness = wsProvider.awareness
 
@@ -281,6 +296,9 @@ function setupConnectionStatusClickHandler() {
 
 // Keep awareness alive
 wsProvider.on('status', ({ status }) => {
+  if (typeof window !== 'undefined' && (window as any).__PLAYWRIGHT_TEST__) {
+    console.log(`WebsocketProvider status: ${status}`)
+  }
   if (status === 'connected') {
     isConnected = true
     updateConnectionStatus(true)
@@ -395,19 +413,30 @@ function updatePeerCount() {
   
   // Count peers excluding self
   let activePeerCount = 0
+  const peerIDs: number[] = []
   awarenessStates.forEach((state, clientID) => {
     if (clientID !== selfClientID) {
       activePeerCount++
+      peerIDs.push(clientID)
     }
   })
 
   // Always update the UI, even if count hasn't changed (in case of race conditions)
   peerCount = activePeerCount
   el.textContent = peerCount.toString()
+  
+  // Debug logging (only in test environment)
+  if (typeof window !== 'undefined' && (window as any).__PLAYWRIGHT_TEST__) {
+    console.log(`updatePeerCount: isConnected=${isConnected}, awarenessStates.size=${awarenessStates.size}, selfClientID=${selfClientID}, activePeerCount=${activePeerCount}, peerIDs=[${peerIDs.join(',')}]`)
+  }
 }
 
 awareness.on('update', ({ added, updated, removed }) => {
   if (!isConnected) return
+  // Debug logging
+  if (typeof window !== 'undefined' && (window as any).__PLAYWRIGHT_TEST__) {
+    console.log(`awareness.update: added=[${added.join(',')}], updated=[${updated.join(',')}], removed=[${removed.join(',')}]`)
+  }
   // Immediately update peer count when awareness changes
   updatePeerCount()
 })

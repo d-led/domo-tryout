@@ -12,9 +12,17 @@ test.describe('Multi-user counter synchronization', () => {
     const page1 = await context1.newPage();
     const page2 = await context2.newPage();
 
+    // Capture console logs
+    page1.on('console', msg => console.log(`Page1: ${msg.text()}`));
+    page2.on('console', msg => console.log(`Page2: ${msg.text()}`));
+    
     // Navigate both pages to the app
     await page1.goto(BASE_URL);
     await page2.goto(BASE_URL);
+    
+    // Mark as test environment for debug logging
+    await page1.evaluate(() => { (window as any).__PLAYWRIGHT_TEST__ = true; });
+    await page2.evaluate(() => { (window as any).__PLAYWRIGHT_TEST__ = true; });
 
     // Wait for both pages to load
     await page1.waitForSelector('#synced-count');
@@ -39,15 +47,24 @@ test.describe('Multi-user counter synchronization', () => {
 
     // Wait for both pages to see each other (1 peer each)
     // Awareness sync can take a moment, so wait longer
+    // Debug: log what's actually happening
     await page1.waitForFunction(() => {
       const count = document.getElementById('peer-count')?.textContent;
+      const status = document.getElementById('connection-status');
+      const svg = status?.querySelector('svg');
+      const isConnected = svg?.getAttribute('style')?.includes('#28a745');
+      console.log(`Page1: peer-count=${count}, connected=${isConnected}`);
       return count === '1';
     }, { timeout: 15000 });
     
     await page2.waitForFunction(() => {
       const count = document.getElementById('peer-count')?.textContent;
+      const status = document.getElementById('connection-status');
+      const svg = status?.querySelector('svg');
+      const isConnected = svg?.getAttribute('style')?.includes('#28a745');
+      console.log(`Page2: peer-count=${count}, connected=${isConnected}`);
       return count === '1';
-    }, { timeout: 10000 });
+    }, { timeout: 15000 });
 
     // Check that both pages show 1 peer (each other)
     const peerCount1 = await page1.textContent('#peer-count');

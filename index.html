@@ -108,22 +108,31 @@
     // Use the same server URL as the WebSocket connection (exposed from synced-counter.ts)
     function fetchServerVersion() {
       const wsServer = window.wsServerUrl || 'ws://localhost:9870'
+      if (!wsServer) {
+        document.getElementById('server-version').textContent = 'unavailable'
+        return
+      }
       // Convert ws:// to http:// or wss:// to https:// for the /version endpoint
-      const httpServer = wsServer.replace(/^ws:/, 'http:').replace(/^wss:/, 'https:')
-      // Remove any path and add /version
-      const baseUrl = httpServer.replace(/\/[^\/]*$/, '')
-      const versionUrl = baseUrl + '/version'
-      
-      fetch(versionUrl)
-        .then(r => r.text())
-        .then(v => {
-          const el = document.getElementById('server-version')
-          if (el) el.textContent = v || 'unknown'
-        })
-        .catch(() => {
-          const el = document.getElementById('server-version')
-          if (el) el.textContent = 'unavailable'
-        })
+      let httpServer = wsServer.replace(/^ws:/, 'http:').replace(/^wss:/, 'https:')
+      // Extract just the hostname and port/protocol, remove any path
+      try {
+        const url = new URL(httpServer)
+        // Reconstruct URL with just protocol, hostname, port, and /version path
+        const versionUrl = `${url.protocol}//${url.hostname}${url.port ? ':' + url.port : ''}/version`
+        fetch(versionUrl)
+          .then(r => r.text())
+          .then(v => {
+            const el = document.getElementById('server-version')
+            if (el) el.textContent = v || 'unknown'
+          })
+          .catch(() => {
+            const el = document.getElementById('server-version')
+            if (el) el.textContent = 'unavailable'
+          })
+      } catch (e) {
+        const el = document.getElementById('server-version')
+        if (el) el.textContent = 'unavailable'
+      }
     }
     
     // Wait for bundle.js to load and expose wsServerUrl
@@ -131,7 +140,7 @@
       fetchServerVersion()
     } else {
       // Wait a bit for the bundle to load
-      setTimeout(fetchServerVersion, 100)
+      setTimeout(fetchServerVersion, 500)
     }
   </script>
 </body>

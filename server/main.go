@@ -318,8 +318,9 @@ func (c *ConnectionActor) Start(ctx context.Context) {
 
 	// Main message loop with context cancellation
 	for {
-		// Set read deadline to detect inactive connections (5 seconds)
-		c.conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+		// Set read deadline to detect inactive connections (30 seconds - allow for network delays)
+		// WebsocketProvider sends pings every ~30 seconds, so we need a longer deadline
+		c.conn.SetReadDeadline(time.Now().Add(30 * time.Second))
 
 		// Use a channel to handle read operations with context cancellation
 		readDone := make(chan struct {
