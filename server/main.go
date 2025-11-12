@@ -514,7 +514,20 @@ func rateLimit(r *http.Request) (reached bool, limit, remaining, reset string) {
 }
 
 func handleVersion(w http.ResponseWriter, r *http.Request) {
+	// Add CORS headers to allow cross-origin requests from GitHub Pages
+	// Headers must be set before WriteHeader
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 	w.Header().Set("Content-Type", "text/plain")
+	
+	// Handle preflight OPTIONS request
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	
+	// WriteHeader must be called after setting headers
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(version))
 }
