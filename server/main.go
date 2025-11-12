@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net"
@@ -59,7 +60,7 @@ type Connection interface {
 	SendMessage(message []byte)
 	UpdateActivity() // Tell server about activity
 	Close()
-	Start()
+	Start(ctx context.Context)
 }
 
 // Server manages rooms and client connections
@@ -242,7 +243,7 @@ func (c *ConnectionActor) removeSelf() {
 	c.server.RemoveClient(c.room, c)
 }
 
-func (c *ConnectionActor) Start() {
+func (c *ConnectionActor) Start(ctx context.Context) {
 	// Client is already added by main via TryAddClient
 	// Ensure we remove ourselves when connection breaks
 	defer c.removeSelf()
@@ -255,30 +256,46 @@ func (c *ConnectionActor) Start() {
 		secret = defaultSecret
 	}
 
-	// Wait for auth message (first message must be auth)
-	authTimeout := time.NewTimer(5 * time.Second)
+	// Wait for auth message (first message must be auth, 3 second timeout)
+	// Use background context for auth timeout (independent of connection context)
+	// to avoid premature cancellation when HTTP handler returns
+	authCtx, authCancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer authCancel()
+
 	authReceived := make(chan bool, 1)
 
 	go func() {
-		c.conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+		c.conn.SetReadDeadline(time.Now().Add(3 * time.Second))
 		messageType, message, err := c.conn.ReadMessage()
 		if err != nil {
-			authReceived <- false
+			select {
+			case authReceived <- false:
+			case <-authCtx.Done():
+			}
 			return
 		}
 
-		// Check if first message is auth
+		// Check if first message is auth (must be TextMessage)
 		if messageType == websocket.TextMessage {
 			var authMsg map[string]interface{}
 			if err := json.Unmarshal(message, &authMsg); err == nil {
-				if authMsg["type"] == "auth" && authMsg["secret"] == secret {
-					c.authenticated = true
-					authReceived <- true
-					return
+				if authMsg["type"] == "auth" {
+					if secretVal, ok := authMsg["secret"].(string); ok && secretVal == secret {
+						c.authenticated = true
+						select {
+						case authReceived <- true:
+						case <-authCtx.Done():
+						}
+						return
+					}
 				}
 			}
 		}
-		authReceived <- false
+		// If first message is not a valid auth text message, reject
+		select {
+		case authReceived <- false:
+		case <-authCtx.Done():
+		}
 	}()
 
 	select {
@@ -289,36 +306,62 @@ func (c *ConnectionActor) Start() {
 			return
 		}
 		log.Printf("Client authenticated in room: %s", c.room)
-	case <-authTimeout.C:
+	case <-authCtx.Done():
 		log.Printf("Rejected connection: auth timeout")
+		c.conn.Close()
+		return
+	case <-ctx.Done():
+		log.Printf("Connection cancelled by context")
 		c.conn.Close()
 		return
 	}
 
+	// Main message loop with context cancellation
 	for {
 		// Set read deadline to detect inactive connections (5 seconds)
 		c.conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 
-		messageType, message, err := c.conn.ReadMessage()
-		if err != nil {
-			// Connection broken - remove self (handled by defer)
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("WebSocket error for client %s: %v", c.clientIP, err)
+		// Use a channel to handle read operations with context cancellation
+		readDone := make(chan struct {
+			messageType int
+			message     []byte
+			err         error
+		}, 1)
+
+		go func() {
+			mt, msg, err := c.conn.ReadMessage()
+			readDone <- struct {
+				messageType int
+				message     []byte
+				err         error
+			}{mt, msg, err}
+		}()
+
+		select {
+		case <-ctx.Done():
+			log.Printf("Connection context cancelled for client %s", c.clientIP)
+			return
+		case result := <-readDone:
+			if result.err != nil {
+				// Connection broken - remove self (handled by defer)
+				if websocket.IsUnexpectedCloseError(result.err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+					log.Printf("WebSocket error for client %s: %v", c.clientIP, result.err)
+				}
+				return
 			}
-			break
-		}
 
-		// Update activity for any message type (including pings/pongs) - tell self
-		c.UpdateActivity()
+			// Update activity for any message type (including pings/pongs) - tell self
+			c.UpdateActivity()
 
-		if messageType == websocket.BinaryMessage {
-			// Broadcast message (rate limiting disabled for now - Yjs handles its own flow control)
-			c.server.Broadcast(c.room, message, c)
-		} else if messageType == websocket.PingMessage {
-			// Respond to ping to keep connection alive
-			c.conn.WriteMessage(websocket.PongMessage, nil)
+			if result.messageType == websocket.BinaryMessage {
+				// Broadcast message (rate limiting disabled for now - Yjs handles its own flow control)
+				c.server.Broadcast(c.room, result.message, c)
+			} else if result.messageType == websocket.PingMessage {
+				// Respond to ping to keep connection alive
+				c.conn.WriteMessage(websocket.PongMessage, nil)
+			}
+			// Pong messages are handled automatically by gorilla/websocket
 		}
-		// Pong messages are handled automatically by gorilla/websocket
 	}
 }
 
@@ -397,9 +440,19 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Create a context tied to the WebSocket connection lifecycle
+	// The request context might be cancelled when the HTTP handler returns,
+	// so we create a new context that will be cancelled when the connection closes
+	// This context is independent of the HTTP request lifecycle
+	connCtx, connCancel := context.WithCancel(context.Background())
+
 	// Start connection actor (runs in goroutine, will handle its own cleanup)
 	// Connection actor will close the connection when done via defer in Start()
-	go connActor.Start()
+	// Cancel the context when the connection actor finishes
+	go func() {
+		defer connCancel() // Cancel context when connection actor finishes
+		connActor.Start(connCtx)
+	}()
 }
 
 func main() {

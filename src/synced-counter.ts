@@ -34,7 +34,11 @@ function resolveWsServer(): string {
 }
 const WS_SERVER = resolveWsServer()
 // __WS_SERVER_URL__ will be replaced during build with production URL, or fallback to localhost
-const defaultWsServer = '__WS_SERVER_URL__' || 'ws://localhost:9870'
+const INJECTED_WS_SERVER = '__WS_SERVER_URL__'
+const defaultWsServer =
+  INJECTED_WS_SERVER && INJECTED_WS_SERVER !== '__WS_SERVER_URL__'
+    ? INJECTED_WS_SERVER
+    : 'ws://localhost:9870'
 
 // Custom WebSocket that sends secret in header via first message
 // Browser WebSocket API doesn't support custom headers, so we send auth as first message
@@ -43,7 +47,7 @@ class HeaderWebSocket {
   private ws: WebSocket | null = null
   private url: string
   private protocols: string[]
-  private readyState: number = WebSocket.CONNECTING
+  private _readyState: number = WebSocket.CONNECTING
   private eventHandlers: { [key: string]: ((event: any) => void)[] } = {}
   private authSent = false
   private messageQueue: (string | ArrayBuffer | Blob)[] = []
@@ -52,6 +56,12 @@ class HeaderWebSocket {
   static readonly OPEN = 1
   static readonly CLOSING = 2
   static readonly CLOSED = 3
+
+  // Expose readyState as a property (not just private field) so WebsocketProvider can access it
+  get readyState(): number {
+    // Return underlying WebSocket's readyState if available, otherwise use our tracked state
+    return this.ws ? this.ws.readyState : this._readyState
+  }
 
   constructor(url: string | URL, protocols: string[] = []) {
     this.url = typeof url === 'string' ? url : url.toString()
@@ -63,32 +73,79 @@ class HeaderWebSocket {
   private setupNativeWebSocket() {
     if (!this.ws) return
 
+    // Intercept send to ensure auth is ALWAYS sent first, before any other messages
+    const originalSend = this.ws.send.bind(this.ws)
+    
+    this.ws.send = (data: string | ArrayBuffer | Blob) => {
+      if (!this.authSent) {
+        // First send() call - send auth immediately, then queue this message
+        this.authSent = true
+        const authMsg = JSON.stringify({ type: 'auth', secret: WS_SECRET })
+        originalSend(authMsg)
+        // Queue the actual message to send after auth
+        this.messageQueue.push(data)
+      } else {
+        // Auth already sent, send normally
+        originalSend(data)
+      }
+    }
+
     this.ws.onopen = (event) => {
-      // Send auth as first message immediately after connection
+      this._readyState = WebSocket.OPEN
+      // If no messages were sent yet (auth not sent), send auth now
       if (!this.authSent) {
         this.authSent = true
-        // Send auth message before any other messages
         const authMsg = JSON.stringify({ type: 'auth', secret: WS_SECRET })
-        this.ws!.send(authMsg)
-        // Send queued messages
-        this.messageQueue.forEach(msg => this.ws!.send(msg))
-        this.messageQueue = []
+        originalSend(authMsg)
       }
-      this.readyState = WebSocket.OPEN
+      // Send any queued messages (these were queued before auth was sent)
+      this.messageQueue.forEach(msg => originalSend(msg))
+      this.messageQueue = []
       this.emit('open', event)
+      // Immediately update connection status when WebSocket opens (synchronously, no setTimeout)
+      // This is a direct hook to ensure UI updates even if WebsocketProvider doesn't detect it
+      isConnected = true
+      const statusEl = document.getElementById('connection-status')
+      if (statusEl) {
+        // Update status directly - green socket icon
+        statusEl.innerHTML = '<svg width="32" height="32" viewBox="0 0 16 16" fill="currentColor" style="color: #28a745; vertical-align: middle; cursor: pointer;"><path d="M6 0a.5.5 0 0 1 .5.5V3h3V.5a.5.5 0 0 1 1 0V3h1a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-1v3a.5.5 0 0 1-.5.5h-5a.5.5 0 0 1-.5-.5V7H4a.5.5 0 0 1-.5-.5v-3A.5.5 0 0 1 4 3h1V.5A.5.5 0 0 1 6 0z"/></svg>'
+        statusEl.title = 'Connected - Click to reconnect'
+      }
+      // Set awareness immediately when connected - this makes us visible to other peers
+      awareness.setLocalStateField('user', {
+        clientID: doc.clientID,
+        timestamp: Date.now()
+      })
+      // Update peer count after delays to catch awareness updates
+      setTimeout(() => updatePeerCount(), 100)
+      setTimeout(() => updatePeerCount(), 500)
     }
 
     this.ws.onmessage = (event) => {
       this.emit('message', event)
     }
+    
+    // Ensure the provider can access the WebSocket instance
+    ;(this as any).ws = this.ws
 
     this.ws.onerror = (event) => {
       this.emit('error', event)
     }
 
     this.ws.onclose = (event) => {
-      this.readyState = WebSocket.CLOSED
+      this._readyState = WebSocket.CLOSED
       this.emit('close', event)
+      // Immediately update connection status when WebSocket closes (synchronously, no setTimeout)
+      isConnected = false
+      const statusEl = document.getElementById('connection-status')
+      if (statusEl) {
+        // Update status directly - red socket icon with X
+        statusEl.innerHTML = '<svg width="32" height="32" viewBox="0 0 16 16" fill="currentColor" style="color: #dc3545; vertical-align: middle; cursor: pointer;"><path d="M6 0a.5.5 0 0 1 .5.5V3h3V.5a.5.5 0 0 1 1 0V3h1a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-1v3a.5.5 0 0 1-.5.5h-5a.5.5 0 0 1-.5-.5V7H4a.5.5 0 0 1-.5-.5v-3A.5.5 0 0 1 4 3h1V.5A.5.5 0 0 1 6 0z" opacity="0.5"/><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/></svg>'
+        statusEl.title = 'Disconnected - Click to reconnect'
+      }
+      peerCount = 0
+      const peerEl = document.getElementById('peer-count')
+      if (peerEl) peerEl.textContent = '0'
     }
   }
 
@@ -113,17 +170,18 @@ class HeaderWebSocket {
   }
 
   send(data: string | ArrayBuffer | Blob) {
-    if (this.ws && this.readyState === WebSocket.OPEN && this.authSent) {
+    if (this.ws && this._readyState === WebSocket.OPEN) {
+      // The intercepted send method will ensure auth is sent first
       this.ws.send(data)
     } else {
-      // Queue messages until auth is sent
+      // Queue messages until connection is open
       this.messageQueue.push(data)
     }
   }
 
   close() {
     if (this.ws) {
-      this.readyState = WebSocket.CLOSING
+      this._readyState = WebSocket.CLOSING
       this.ws.close()
     }
   }
@@ -132,7 +190,9 @@ class HeaderWebSocket {
 // Use WebSocket provider with custom WebSocket that sends secret as first message
 // Browser WebSocket API limitation: can't set custom headers, so we send auth as first message
 const wsProvider = new WebsocketProvider(WS_SERVER || defaultWsServer, 'domo-actors-counter', doc, {
-  WebSocketPolyfill: HeaderWebSocket as any
+  WebSocketPolyfill: HeaderWebSocket as any,
+  // Ensure the provider can access the underlying WebSocket for status detection
+  params: {}
 })
 const awareness = wsProvider.awareness
 
@@ -140,10 +200,11 @@ const awareness = wsProvider.awareness
 let isConnected = false
 
 // Set awareness state immediately (will be synced when connected)
-const awarenessState = {
-  clientID: doc.clientID
-}
-awareness.setLocalStateField('user', awarenessState)
+// This ensures we're visible to other peers
+awareness.setLocalStateField('user', {
+  clientID: doc.clientID,
+  timestamp: Date.now()
+})
 
 // Set up IndexedDB persistence
 const INDEXEDDB_NAME = 'domo-actors-counter'
@@ -171,7 +232,6 @@ indexeddbProvider.on('synced', () => {
 
 // Track peer count
 let peerCount = 0
-const peerActivity = new Map<number, number>()
 let heartbeatTimer: number | null = null
 
 function updateConnectionStatus(connected: boolean) {
@@ -191,7 +251,9 @@ function updateConnectionStatus(connected: boolean) {
 
 // Manual reconnection handler (y-websocket has built-in exponential backoff, but we can trigger it manually)
 function triggerReconnection() {
-  if (wsProvider.ws && wsProvider.ws.readyState === WebSocket.OPEN) {
+  // Check if underlying WebSocket exists and is open
+  const ws = (wsProvider as any).ws
+  if (ws && (ws.readyState === WebSocket.OPEN || (ws.ws && ws.ws.readyState === WebSocket.OPEN))) {
     // Already connected, no need to reconnect
     return
   }
@@ -219,7 +281,7 @@ wsProvider.on('status', ({ status }) => {
     updateConnectionStatus(true)
     // Ensure awareness is set when connected
     awareness.setLocalStateField('user', {
-      ...awarenessState,
+      clientID: doc.clientID,
       timestamp: Date.now()
     })
     
@@ -228,14 +290,15 @@ wsProvider.on('status', ({ status }) => {
       heartbeatTimer = window.setInterval(() => {
         if (isConnected) {
           awareness.setLocalStateField('user', {
-            ...awarenessState,
+            clientID: doc.clientID,
             timestamp: Date.now()
           })
         }
       }, 5000)
     }
-    // Small delay to let awareness sync
+    // Update peer count after delays to catch awareness updates
     setTimeout(() => updatePeerCount(), 100)
+    setTimeout(() => updatePeerCount(), 500)
   } else if (status === 'disconnected') {
     isConnected = false
     updateConnectionStatus(false)
@@ -243,9 +306,6 @@ wsProvider.on('status', ({ status }) => {
       clearInterval(heartbeatTimer)
       heartbeatTimer = null
     }
-    // Clear peer activity and update count to 0 immediately
-    peerActivity.clear()
-    // Force peer count to 0 (1 - 1 = 0, excluding self)
     peerCount = 0
     const el = document.getElementById('peer-count')
     if (el) {
@@ -256,6 +316,58 @@ wsProvider.on('status', ({ status }) => {
   }
 })
 
+// Fallback: Poll connection status directly from WebSocket readyState
+// This ensures we detect connection even if WebsocketProvider doesn't emit status events
+setInterval(() => {
+  const ws = (wsProvider as any).ws
+  if (ws) {
+    // Check readyState - could be our HeaderWebSocket or the underlying native WebSocket
+    const readyState = ws.readyState !== undefined ? ws.readyState : (ws.ws && ws.ws.readyState)
+    
+    if (readyState === WebSocket.OPEN) {
+      if (!isConnected) {
+        // Force connection status update
+        console.log('Fallback: Detected connection via readyState polling')
+        isConnected = true
+        updateConnectionStatus(true)
+        // Set awareness
+        awareness.setLocalStateField('user', {
+          clientID: doc.clientID,
+          timestamp: Date.now()
+        })
+        // Start heartbeat if not already started
+        if (heartbeatTimer === null) {
+          heartbeatTimer = window.setInterval(() => {
+            if (isConnected) {
+              awareness.setLocalStateField('user', {
+                clientID: doc.clientID,
+                timestamp: Date.now()
+              })
+            }
+          }, 5000)
+        }
+        setTimeout(() => updatePeerCount(), 100)
+      }
+    } else if (readyState === WebSocket.CLOSED || readyState === WebSocket.CLOSING) {
+      if (isConnected) {
+        // Force disconnection status update
+        console.log('Fallback: Detected disconnection via readyState polling')
+        isConnected = false
+        updateConnectionStatus(false)
+        if (heartbeatTimer !== null) {
+          clearInterval(heartbeatTimer)
+          heartbeatTimer = null
+        }
+        peerCount = 0
+        const el = document.getElementById('peer-count')
+        if (el) {
+          el.textContent = '0'
+        }
+      }
+    }
+  }
+}, 500) // Poll every 500ms
+
 // Initialize connection status as disconnected
 updateConnectionStatus(false)
 
@@ -263,86 +375,44 @@ updateConnectionStatus(false)
 setupConnectionStatusClickHandler()
 
 function updatePeerCount() {
-  // If disconnected, show 0 peers (1 - 1 = 0, excluding self)
+  const el = document.getElementById('peer-count')
+  if (!el) return
+
   if (!isConnected) {
     peerCount = 0
-    const el = document.getElementById('peer-count')
-    if (el) {
-      el.textContent = '0'
-    }
+    el.textContent = '0'
     return
   }
 
-  const now = Date.now()
-  const timeoutMs = 3000
+  // Get all awareness states (includes self)
+  const awarenessStates = awareness.getStates()
   const selfClientID = doc.clientID
   
-  // Get current awareness states
-  const awarenessStates = awareness.getStates()
-  const awarenessPeerIDs = new Set(Array.from(awarenessStates.keys()))
-  
-  // Remove peers from peerActivity if they're not in current awareness states
-  // This handles cases where Yjs hasn't fired the 'removed' event yet
-  peerActivity.forEach((lastActivity, clientID) => {
-    if (!awarenessPeerIDs.has(clientID)) {
-      // Peer is no longer in awareness states - remove immediately
-      peerActivity.delete(clientID)
-    } else if (now - lastActivity > timeoutMs) {
-      // Peer is in awareness but hasn't been active - remove after timeout
-      peerActivity.delete(clientID)
-    }
-  })
-  
-  // Update activity timestamps for current awareness states
-  awarenessPeerIDs.forEach(clientID => {
-    if (peerActivity.has(clientID)) {
-      // Update existing entry (don't reset timestamp if already exists)
-      // This allows the timeout to work properly
-      const existingTime = peerActivity.get(clientID)
-      if (existingTime && now - existingTime < timeoutMs) {
-        // Keep existing timestamp if still valid
-        // Only update if it's about to expire
-      } else {
-        // Set new timestamp
-        peerActivity.set(clientID, now)
-      }
-    } else {
-      // New peer - add with current timestamp
-      peerActivity.set(clientID, now)
-    }
-  })
-  
-  // Count only other peers (exclude self) - 1 - 1 = 0 when only self
+  // Count peers excluding self
   let activePeerCount = 0
-  peerActivity.forEach((_, clientID) => {
+  awarenessStates.forEach((state, clientID) => {
     if (clientID !== selfClientID) {
       activePeerCount++
     }
   })
-  
-  // Always update if count changed
-  if (activePeerCount !== peerCount) {
-    peerCount = activePeerCount
-    const el = document.getElementById('peer-count')
-    if (el) {
-      el.textContent = peerCount.toString()
-    }
-  }
+
+  // Always update the UI, even if count hasn't changed (in case of race conditions)
+  peerCount = activePeerCount
+  el.textContent = peerCount.toString()
 }
 
 awareness.on('update', ({ added, updated, removed }) => {
-  if (!isConnected) return // Ignore awareness updates when disconnected
-  
-  const now = Date.now()
-  added.forEach(clientID => peerActivity.set(clientID, now))
-  updated.forEach(clientID => peerActivity.set(clientID, now))
-  removed.forEach(clientID => peerActivity.delete(clientID))
+  if (!isConnected) return
+  // Immediately update peer count when awareness changes
   updatePeerCount()
 })
 
+// Poll peer count to catch awareness updates
 setInterval(() => {
-  updatePeerCount()
-}, 1000)
+  if (isConnected) {
+    updatePeerCount()
+  }
+}, 250)
 
 // Transport callbacks send messages to actor via interface (unidirectional messaging)
 observeDeep(store, () => {
@@ -352,13 +422,9 @@ observeDeep(store, () => {
     sendToActor(newValue)
     return
   }
-  
-  const now = Date.now()
-  awareness.getStates().forEach((state, clientID) => {
-    peerActivity.set(clientID, now)
-  })
+
   updatePeerCount()
-  
+
   const newValue = store.data.count || 0
   sendToActor(newValue)
 })
@@ -446,7 +512,6 @@ export function createSyncedCounter() {
     sendToActor(initialValue)
   }
   
-  // Don't add self to peerActivity - we only count other peers
   updatePeerCount()
   
   return syncedCounter

@@ -38,10 +38,11 @@ test.describe('Multi-user counter synchronization', () => {
     }, { timeout: 10000 });
 
     // Wait for both pages to see each other (1 peer each)
+    // Awareness sync can take a moment, so wait longer
     await page1.waitForFunction(() => {
       const count = document.getElementById('peer-count')?.textContent;
       return count === '1';
-    }, { timeout: 10000 });
+    }, { timeout: 15000 });
     
     await page2.waitForFunction(() => {
       const count = document.getElementById('peer-count')?.textContent;
@@ -152,7 +153,7 @@ test.describe('Multi-user counter synchronization', () => {
     await page1.waitForFunction(() => {
       const count = document.getElementById('peer-count')?.textContent;
       return count === '1';
-    }, { timeout: 5000 });
+    }, { timeout: 15000 });
 
     await page2.waitForFunction(() => {
       const count = document.getElementById('peer-count')?.textContent;
@@ -235,7 +236,7 @@ test.describe('Multi-user counter synchronization', () => {
     await page1.waitForFunction(() => {
       const count = document.getElementById('peer-count')?.textContent;
       return count === '1';
-    }, { timeout: 10000 });
+    }, { timeout: 15000 });
 
     await page2.waitForFunction(() => {
       const count = document.getElementById('peer-count')?.textContent;

@@ -1,0 +1,60 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - heading "Trying out github.com/VaughnVernon/DomoActors in the browser → This Demo" [level=5] [ref=e6]:
+        - text: Trying out
+        - link "github.com/VaughnVernon/DomoActors" [ref=e7] [cursor=pointer]:
+          - /url: https://github.com/VaughnVernon/DomoActors
+          - img [ref=e8]
+          - text: github.com/VaughnVernon/DomoActors
+        - text: in the browser →
+        - link "This Demo" [ref=e10] [cursor=pointer]:
+          - /url: https://github.com/d-led/domo-tryout
+          - img [ref=e11]
+          - text: This Demo
+      - generic [ref=e13]:
+        - generic [ref=e14]:
+          - heading "Local Counter" [level=6] [ref=e15]
+          - heading "29" [level=1] [ref=e16]
+          - button "-" [ref=e17] [cursor=pointer]
+        - generic [ref=e18]:
+          - heading "Synced Counter (shared across users) 0 peer(s) Disconnected - Click to reconnect" [level=6] [ref=e19]:
+            - text: Synced Counter (shared across users)
+            - generic [ref=e20]: "0"
+            - text: peer(s)
+            - generic "Disconnected - Click to reconnect" [ref=e21] [cursor=pointer]:
+              - img [ref=e22]
+          - heading "29" [level=1] [ref=e25]
+          - button "-" [ref=e26] [cursor=pointer]
+    - generic [ref=e27]:
+      - generic [ref=e32]: src/Counter.ts
+      - code [ref=e35]: "export interface Counter { increment(): void decrement(): void } export interface SyncedCounter extends Counter { updateFromRemote(value: number): void }"
+    - generic [ref=e36]:
+      - generic [ref=e41]: src/index.ts
+      - code [ref=e44]:
+        - text: "import { Actor, Protocol, stage } from 'domo-actors' //... class CounterActor extends Actor implements Counter { private count = 0 private syncedCounter: Counter constructor(syncedCounter: Counter) { super() this.syncedCounter = syncedCounter } increment() { this.count++; this.update(); this.syncedCounter.increment() } decrement() { this.count--; this.update(); this.syncedCounter.decrement() } private update() { const el = document.getElementById('count') if (el) el.textContent = this.count.toString() } } const counter = appStage."
+        - generic [ref=e45]:
+          - text: actorFor
+          - generic [ref=e46]: <Counter>
+        - text: "({ instantiator: () => ({ instantiate: () => new CounterActor(syncedCounter) }), type: () => 'Counter' }) setInterval(() => { counter.increment() }, 1000)"
+    - generic [ref=e47]:
+      - generic [ref=e52]: index.html (button)
+      - code [ref=e55]:
+        - generic [ref=e56]:
+          - generic [ref=e57]: <button
+          - text: class
+          - generic [ref=e58]: ="btn btn-danger btn-lg"
+          - text: onclick
+          - generic [ref=e59]: ="counter.decrement()"
+          - text: ">"
+        - text: "-"
+        - generic [ref=e60]:
+          - generic [ref=e61]: </button
+          - text: ">"
+  - contentinfo [ref=e62]:
+    - generic [ref=e63]: "Server version: unavailable"
+    - generic [ref=e64]: "Client version: dev"
+```
