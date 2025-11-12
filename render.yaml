@@ -1,22 +1,12 @@
 services:
   - type: web
     name: y-websocket-server
-    env: go
-    plan: free
     rootDir: server
-    buildCommand: |
-      GIT_REF=${RENDER_GIT_BRANCH:-unknown}
-      GIT_COMMIT=${RENDER_GIT_COMMIT:-unknown}
-      # Use short commit hash (first 7 chars) if available
-      GIT_COMMIT_SHORT=$(echo ${GIT_COMMIT} | cut -c1-7)
-      VERSION="${GIT_REF}-${GIT_COMMIT_SHORT}"
-      go mod download && CGO_ENABLED=0 go build -ldflags "-X main.version=${VERSION}" -o server
-    startCommand: ./server
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
     envVars:
       - key: PORT
-        value: 10000
-      - key: CGO_ENABLED
-        value: "0"
-      # WS_SECRET should be set in Render.com dashboard environment variables, not here
+        value: 9870
+      # WS_SECRET should be set in Render.com dashboard environment variables
       # It must match the GitHub secret WS_SECRET used for client builds
-

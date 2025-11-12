@@ -22,7 +22,7 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'cd server && go run .',
+      command: 'cd server && npm install && npm start',
       port: 9870,
       reuseExistingServer: !process.env.CI,
       timeout: 120 * 1000,
