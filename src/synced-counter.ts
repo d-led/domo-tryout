@@ -34,11 +34,10 @@ function resolveWsServer(): string {
 }
 const WS_SERVER = resolveWsServer()
 // __WS_SERVER_URL__ will be replaced during build with production URL, or fallback to localhost
+// If replacement happened, INJECTED_WS_SERVER will be the actual URL (not the placeholder)
+// If replacement didn't happen (local dev), INJECTED_WS_SERVER will be empty string (replaced by build.js)
 const INJECTED_WS_SERVER = '__WS_SERVER_URL__'
-const defaultWsServer =
-  INJECTED_WS_SERVER && INJECTED_WS_SERVER !== '__WS_SERVER_URL__'
-    ? INJECTED_WS_SERVER
-    : 'ws://localhost:9870'
+const defaultWsServer = INJECTED_WS_SERVER || 'ws://localhost:9870'
 
 // Custom WebSocket that sends secret in header via first message
 // Browser WebSocket API doesn't support custom headers, so we send auth as first message
@@ -189,7 +188,13 @@ class HeaderWebSocket {
 
 // Use WebSocket provider with custom WebSocket that sends secret as first message
 // Browser WebSocket API limitation: can't set custom headers, so we send auth as first message
-const wsProvider = new WebsocketProvider(WS_SERVER || defaultWsServer, 'domo-actors-counter', doc, {
+const actualWsServer = WS_SERVER || defaultWsServer
+// Expose server URL globally so index.html can use it for version fetch
+if (typeof window !== 'undefined') {
+  (window as any).wsServerUrl = actualWsServer
+}
+
+const wsProvider = new WebsocketProvider(actualWsServer, 'domo-actors-counter', doc, {
   WebSocketPolyfill: HeaderWebSocket as any,
   // Ensure the provider can access the underlying WebSocket for status detection
   params: {}

@@ -69,10 +69,13 @@ const replacePlugin = {
       if (wsServerUrl) {
         const wssUrl = wsServerUrl.replace(/^https?:\/\//, 'wss://')
         // Replace '__WS_SERVER_URL__' with the actual URL (without quotes, they're already in source)
+        // Need to replace both the string literal and any other occurrences
         contents = contents.replace(/__WS_SERVER_URL__/g, wssUrl)
+        console.log(`Replaced __WS_SERVER_URL__ with: ${wssUrl.substring(0, 50)}...`)
       } else {
         // For local dev, replace with empty string so it falls back to localhost via ||
         contents = contents.replace(/__WS_SERVER_URL__/g, '')
+        console.log('Replaced __WS_SERVER_URL__ with empty string (local dev)')
       }
       return {
         contents,
