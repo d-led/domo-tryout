@@ -97,9 +97,6 @@ const jsOptions = {
   loader: {
     '.ts': 'ts',
   },
-  alias: {
-    'domo-actors': './node_modules/domo-actors/src/actors/index.ts',
-  },
   plugins: [replacePlugin],
 }
 
