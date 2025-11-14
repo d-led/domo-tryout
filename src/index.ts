@@ -49,5 +49,6 @@ setInterval(() => {
 }, 1000)
 // embed-end
 if (typeof window !== 'undefined') {
-  (window as any).counter = counter
+  (window as any).counter = counter;
+  (window as any).syncedCounter = syncedCounter;
 }
