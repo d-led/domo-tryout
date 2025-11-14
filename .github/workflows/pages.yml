@@ -20,15 +20,15 @@ jobs:
     environment: github-pages
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-      
+          node-version: "20"
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Build
         env:
           WS_SECRET: ${{ secrets.WS_SECRET }}
@@ -39,15 +39,15 @@ jobs:
           echo "WS_SERVER_URL value: ${WS_SERVER_URL:0:50}..."
           echo "VERSION: $VERSION"
           npm run build
-      
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
-      
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './dist'
-  
+          path: "./dist"
+
   deploy:
     environment:
       name: github-pages
@@ -58,4 +58,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-

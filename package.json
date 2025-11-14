@@ -12,7 +12,8 @@
     "test": "playwright test --reporter=list",
     "test:ui": "playwright test --ui",
     "test:unit": "vitest",
-    "test:unit:ui": "vitest --ui"
+    "test:unit:ui": "vitest --ui",
+    "prettier": "prettier -w ."
   },
   "dependencies": {
     "@syncedstore/core": "^0.6.0",
@@ -26,6 +27,7 @@
     "@vitest/ui": "^4.0.9",
     "esbuild": "^0.27.0",
     "http-server": "^14.1.1",
+    "prettier": "^3.6.2",
     "vitest": "^4.0.9"
   }
 }

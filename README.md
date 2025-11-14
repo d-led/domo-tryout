@@ -36,6 +36,7 @@ npm run test:unit  # Vitest unit tests
 ```
 
 **Local Development**:
+
 - Run `npm run serve` in one terminal (serves UI on :8000)
 - Run `npm run server` in another terminal (serves backend on :9870)
 - Or use `npm run dev` to watch and rebuild UI files (then serve separately)
@@ -47,6 +48,7 @@ npm run server    # Start Node.js server on :9870
 ```
 
 Or manually:
+
 ```bash
 cd server
 npm install
@@ -56,16 +58,19 @@ npm start
 ## Deployment
 
 **UI (GitHub Pages)**:
+
 - Automatically deployed from `main` branch via `.github/workflows/pages.yml`
 - Only builds and deploys `dist/` (static frontend files)
 - Server code is NOT included
 
 **Backend (Render.com)**:
+
 - Deploy via `render.yaml` (root directory)
 - Only deploys `server/` directory (Node.js WebSocket server)
 - UI code is NOT included
 
 **Security**: Set `WS_SECRET` in both:
+
 - GitHub repository secrets (for client build)
 - Render.com environment variables (for server)
-Both must match for authentication to work.
+  Both must match for authentication to work.

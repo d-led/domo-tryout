@@ -1,7 +1,7 @@
 .window {
   background: #1e1e1e;
   border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   overflow: hidden;
   margin: 2rem 0;
 }
@@ -21,9 +21,15 @@
   border-radius: 50%;
 }
 
-.dot-red { background: #ff5f57; }
-.dot-yellow { background: #ffbd2e; }
-.dot-green { background: #28ca42; }
+.dot-red {
+  background: #ff5f57;
+}
+.dot-yellow {
+  background: #ffbd2e;
+}
+.dot-green {
+  background: #28ca42;
+}
 
 .window-title {
   color: #888;
@@ -63,4 +69,3 @@ a svg {
 a:hover svg {
   opacity: 1;
 }
-

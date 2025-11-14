@@ -1,9 +1,8 @@
 export interface Counter {
-  increment(): void
-  decrement(): void
+  increment(): void;
+  decrement(): void;
 }
 
 export interface SyncedCounter extends Counter {
-  updateFromRemote(value: number): void
+  updateFromRemote(value: number): void;
 }
-

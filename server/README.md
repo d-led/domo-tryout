@@ -16,8 +16,13 @@ Minimal Go-based WebSocket server for Yjs synchronization.
 The server accepts WebSocket connections at `wss://your-server.com/room-name`
 
 Example client connection:
+
 ```javascript
-const wsProvider = new WebsocketProvider('wss://your-server.onrender.com', 'my-room', doc)
+const wsProvider = new WebsocketProvider(
+  "wss://your-server.onrender.com",
+  "my-room",
+  doc,
+);
 ```
 
 ## Local Development
@@ -28,4 +33,3 @@ go run main.go
 ```
 
 Server runs on `ws://localhost:10000` by default.
-
