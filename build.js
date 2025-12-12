@@ -48,7 +48,7 @@ async function buildExtractEmbedded() {
 }
 
 const wsSecret = process.env.WS_SECRET || "wss-changeme"; // Default for local dev
-const wsServerUrl = process.env.WS_SERVER_URL || ""; // Render.com WebSocket server URL for production
+const wsServerUrl = process.env.WS_SERVER_URL || ""; // Fly.io WebSocket server URL for production
 
 // Debug logging
 if (process.env.CI) {

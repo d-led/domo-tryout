@@ -19,7 +19,7 @@ Browser (Client)              WebSocket Server (Node.js)
 ```
 
 - **Client**: DomoActors actors communicate via SyncedStore (Yjs) over WebSocket
-- **Server**: Node.js WebSocket server using `@y/websocket-server` (deployed on Render.com)
+- **Server**: Node.js WebSocket server using `@y/websocket-server` (deployed on Fly.io)
 - **UI**: Static frontend deployed on GitHub Pages
 - **Sync**: Yjs handles CRDT synchronization, IndexedDB provides offline persistence
 - **Security**: Room restriction, origin/referer checks, shared secret authentication
@@ -63,14 +63,30 @@ npm start
 - Only builds and deploys `dist/` (static frontend files)
 - Server code is NOT included
 
-**Backend (Render.com)**:
+**Backend (Fly.io)**:
 
-- Deploy via `render.yaml` (root directory)
+- Deploy from `server/` directory using Fly.io CLI
+- See `server/README.md` for deployment instructions
 - Only deploys `server/` directory (Node.js WebSocket server)
 - UI code is NOT included
+- **Deployed URL**: `wss://d-led-y-websocket-server.fly.dev` (Amsterdam region)
 
-**Security**: Set `WS_SECRET` in both:
+**Security Configuration**:
 
-- GitHub repository secrets (for client build)
-- Render.com environment variables (for server)
-  Both must match for authentication to work.
+You need to set secrets in two places for authentication to work:
+
+1. **Fly.io** (for the server):
+   ```bash
+   cd server
+   fly secrets set WS_SECRET=your-secret-value-here
+   ```
+
+2. **GitHub Repository Secrets** (for client builds):
+   - Go to your GitHub repository → Settings → Secrets and variables → Actions
+   - Add these secrets:
+     - `WS_SECRET`: Same value as set in Fly.io (must match exactly)
+     - `WS_SERVER_URL`: `https://d-led-y-websocket-server.fly.dev` (used to build WebSocket URL)
+
+   The GitHub Actions workflow (`.github/workflows/pages.yml`) will use these secrets when building the client for GitHub Pages deployment.
+
+**Important**: Both `WS_SECRET` values must match exactly, or WebSocket connections will be rejected.
