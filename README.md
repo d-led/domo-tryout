@@ -12,8 +12,8 @@ Browser (Client)              WebSocket Server (Node.js)
 │             │   WebSocket  │                  │
 │ SyncedStore │              │  Security:       │
 │  (Yjs)      │              │  - Room check    │
-│             │              │  - Origin check │
-│ IndexedDB   │              │  - Secret auth  │
+│             │              │  - Origin check  │
+│ IndexedDB   │              │  - Secret auth   │
 │ Persistence │              └──────────────────┘
 └─────────────┘
 ```
