@@ -48,6 +48,18 @@ const wsProvider = new WebsocketProvider(
 );
 ```
 
+## Security
+
+The server includes multiple security features:
+- Rate limiting (5 requests/second per IP) ⭐ Most important
+- Connection limits (5 concurrent connections per IP)
+- Origin validation (exact match)
+- Secret authentication
+- Frame size limits (1MB max)
+- Connection timeouts (5 minutes)
+
+See [SECURITY.md](./SECURITY.md) for detailed security documentation and configuration options.
+
 ## Local Development
 
 ```bash
@@ -56,3 +68,15 @@ npm start
 ```
 
 Server runs on `ws://localhost:9870` by default (or `PORT` environment variable).
+
+### Security Configuration (Optional)
+
+You can customize security settings via environment variables:
+
+```bash
+MAX_CONNECTIONS_PER_IP=5
+RATE_LIMIT_WINDOW_MS=1000        # 1 second window
+RATE_LIMIT_MAX_REQUESTS=5        # 5 requests per second
+MAX_FRAME_SIZE=1048576
+CONNECTION_TIMEOUT_MS=300000
+```
