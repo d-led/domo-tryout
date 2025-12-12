@@ -63,8 +63,13 @@ const replacePlugin = {
   setup(build) {
     build.onLoad({ filter: /synced-counter\.ts$/ }, async (args) => {
       let contents = readFileSync(args.path, "utf8");
-      // Replace '__WS_SECRET__' with the actual secret (keeping quotes)
+      // Replace '__WS_SECRET__' or "__WS_SECRET__" with the actual secret (keeping quotes)
+      const beforeSecret = contents;
       contents = contents.replace(/'__WS_SECRET__'/g, `'${wsSecret}'`);
+      contents = contents.replace(/"__WS_SECRET__"/g, `"${wsSecret}"`);
+      if (contents !== beforeSecret) {
+        console.log(`Replaced __WS_SECRET__ with: ${wsSecret.substring(0, 10)}...`);
+      }
       // Replace '__WS_SERVER_URL__' with the actual server URL (convert https:// to wss://)
       if (wsServerUrl) {
         const wssUrl = wsServerUrl.replace(/^https?:\/\//, "wss://");
