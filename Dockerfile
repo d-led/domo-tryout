@@ -1,5 +1,5 @@
 # Build stage 1: Build frontend
-FROM node:20-alpine AS frontend-builder
+FROM node:22-alpine AS frontend-builder
 
 WORKDIR /build-frontend
 
@@ -15,13 +15,16 @@ RUN npm ci && \
     npm cache clean --force
 
 # Build the frontend (creates dist/)
-# Set build environment variables if needed
+# Note: WS_SECRET is needed at BUILD TIME to inject into frontend bundle
+# ARG values are available as environment variables during build automatically
+# The secret is baked into the frontend code and not stored in image layers
+# For Fly.io: WS_SECRET is passed via --build-arg during deployment
+# Runtime secrets (if needed) are handled separately via Fly secrets
 ARG WS_SECRET=wss-changeme
 ARG WS_SERVER_URL=
 ARG VERSION=dev
-ENV WS_SECRET=${WS_SECRET}
-ENV WS_SERVER_URL=${WS_SERVER_URL}
-ENV VERSION=${VERSION}
+# ARG values are automatically available as env vars during build
+# No need for ENV - build.js reads from process.env
 
 RUN npm run build
 
@@ -30,7 +33,7 @@ RUN mkdir -p /build-output && \
     cp -r dist /build-output/dist
 
 # Build stage 2: Install server dependencies
-FROM node:20-alpine AS server-builder
+FROM node:22-alpine AS server-builder
 
 WORKDIR /build-server
 
@@ -42,7 +45,7 @@ RUN npm ci --only=production && \
     npm cache clean --force
 
 # Runtime stage
-FROM node:20-alpine
+FROM node:22-alpine
 
 # Use the existing node user (non-root, UID 1000)
 WORKDIR /app
@@ -55,6 +58,10 @@ COPY --chown=node:node server/package.json server/package-lock.json server/serve
 
 # Copy built frontend from frontend-builder to dist/
 COPY --from=frontend-builder --chown=node:node /build-output/dist ./dist
+
+# Note: WS_SECRET was injected at build time into the frontend bundle
+# Runtime secret (if server needs it) should be passed via Fly secrets
+# The build-time ARG is not available in the final image (by design)
 
 # Switch to non-root user
 USER node

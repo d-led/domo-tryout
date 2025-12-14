@@ -8,6 +8,6 @@
   },
   "dependencies": {
     "@y/websocket-server": "^0.1.1",
-    "ws": "^8.18.0"
+    "ws": "^8.18.3"
   }
 }

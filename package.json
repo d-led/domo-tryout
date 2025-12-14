@@ -16,16 +16,16 @@
   },
   "dependencies": {
     "@syncedstore/core": "^0.6.0",
-    "domo-actors": "^1.0.2",
+    "domo-actors": "^1.1.0",
     "y-indexeddb": "^9.0.12",
     "y-webrtc": "^10.3.0",
     "y-websocket": "^3.0.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.56.1",
-    "@vitest/ui": "^4.0.9",
-    "esbuild": "^0.27.0",
-    "prettier": "^3.6.2",
-    "vitest": "^4.0.9"
+    "@playwright/test": "^1.57.0",
+    "@vitest/ui": "^4.0.15",
+    "esbuild": "^0.27.1",
+    "prettier": "^3.7.4",
+    "vitest": "^4.0.15"
   }
 }
