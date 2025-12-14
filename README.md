@@ -5,24 +5,24 @@ Trying out [DomoActors](https://github.com/VaughnVernon/DomoActors) in the brows
 ## Architecture
 
 ```
-Browser (Client)              WebSocket Server (Node.js)
-┌─────────────┐              ┌──────────────────┐
-│ DomoActors  │              │  y-websocket     │
-│   Actors    │◄────────────►│  Server          │
-│             │   WebSocket  │                  │
-│ SyncedStore │              │  Security:       │
-│  (Yjs)      │              │  - Room check    │
-│             │              │  - Origin check  │
-│ IndexedDB   │              │  - Secret auth   │
-│ Persistence │              └──────────────────┘
-└─────────────┘
+Browser (Client)     OAuth2 Proxy      Backend Server (Node.js)
+┌─────────────┐     ┌──────────┐      ┌──────────────────┐
+│ DomoActors  │     │  Proxy   │      │  y-websocket     │
+│   Actors    │────►│ (Public) │─────►│  Server          │
+│             │     │          │      │  (Private)       │
+│ SyncedStore │     │ GitHub   │      │  Security:       │
+│  (Yjs)      │     │  Auth    │      │  - Room check    │
+│             │     │          │      │  - Origin check  │
+│ IndexedDB   │     └──────────┘      │  - Secret auth   │
+│ Persistence │                       └──────────────────┘
+└─────────────┘                       (Flycast network)
 ```
 
 - **Client**: DomoActors actors communicate via SyncedStore (Yjs) over WebSocket
-- **Server**: Node.js WebSocket server using `@y/websocket-server` (deployed on Fly.io)
-- **UI**: Static frontend deployed on GitHub Pages
+- **Proxy**: OAuth2 proxy (GitHub authentication) - public-facing entry point
+- **Backend**: Node.js server serving static files and WebSocket (private, Flycast-only)
 - **Sync**: Yjs handles CRDT synchronization, IndexedDB provides offline persistence
-- **Security**: Room restriction, origin/referer checks, shared secret authentication
+- **Security**: OAuth2 authentication, room restriction, origin/referer checks, shared secret authentication
 
 ## Setup
 
@@ -43,40 +43,15 @@ npm run test:unit  # Vitest unit tests
 
 ## Server
 
+The WebSocket server is in the `server/` directory. For server-specific documentation, see [server/README.md](server/README.md).
+
+Quick start:
 ```bash
 npm run server    # Start Node.js server on :9870
 ```
 
-Or manually:
-
-```bash
-cd server
-npm install
-npm start
-```
-
 ## Deployment
 
-**UI (GitHub Pages)**:
+**Fly.io**: See [server/README.md](server/README.md) for detailed deployment instructions.
 
-- Automatically deployed from `main` branch via `.github/workflows/pages.yml`
-- Only builds and deploys `dist/` (static frontend files)
-- Server code is NOT included
-
-**Backend (Fly.io)**:
-
-- Deploy from `server/` directory using Fly.io CLI
-- See `server/README.md` for deployment instructions
-- Only deploys `server/` directory (Node.js WebSocket server)
-- UI code is NOT included
-- **Deployed URL**: `wss://d-led-y-websocket-server.fly.dev` (Amsterdam region)
-
-**Security Configuration**:
-
-You need to set secrets in two places for authentication to work:
-
-1. **Fly.io** (for the server):
-   ```bash
-   cd server
-   fly secrets set WS_SECRET=your-secret-value-here
-   ```
+**GitHub Pages**: Redirects to `https://domo-tryout.fly.dev/` (legacy support). Automatically deployed from `main` branch via `.github/workflows/pages.yml`.

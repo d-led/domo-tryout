@@ -2,33 +2,64 @@
 
 Minimal Node.js-based WebSocket server for Yjs synchronization.
 
+This server serves both static frontend files and WebSocket connections for the DomoActors demo.
+
 ## Deploy to Fly.io
 
-**Current Deployment**: `wss://d-led-y-websocket-server.fly.dev` (Amsterdam region)
+**Current Deployment**: 
+- **Public URL**: `https://domo-tryout.fly.dev` (via OAuth2 proxy)
+- **Backend App**: `domo-tryout-app` (private, Flycast-only)
+- **Proxy App**: `domo-tryout` (public-facing with GitHub OAuth)
 
-To deploy or update:
+### Deployment
 
-1. Install the [Fly CLI](https://fly.io/docs/getting-started/installing-flyctl/)
-2. Authenticate: `fly auth login`
-3. From the `server/` directory, set the `WS_SECRET` environment variable:
+The backend is deployed as part of a unified Docker build that includes both the frontend and backend.
+
+**From the project root:**
+
+1. Set `WS_SECRET` in your environment (e.g., in `~/.zshrc`):
    ```bash
-   fly secrets set WS_SECRET=your-secret-value-here
+   export WS_SECRET="your-secret-value-here"
    ```
-   **Important**: This must match the `WS_SECRET` GitHub secret used to build the client.
-4. Deploy: `fly deploy`
-5. Your server will be available at `wss://d-led-y-websocket-server.fly.dev`
+
+2. Deploy the backend:
+   ```bash
+   ./deploy-fly.sh
+   ```
+
+   This script will:
+   - Use `WS_SECRET` from your environment for the build
+   - Set it as a Fly.io secret for runtime authentication
+   - Deploy the backend app (`domo-tryout-app`)
+
+3. Deploy the proxy (separate app):
+   ```bash
+   fly deploy -a domo-tryout -c proxy/fly.toml
+   ```
+
+**Note**: The backend app is private (Flycast-only) and serves both static files and WebSocket connections. The proxy app handles public access with OAuth2 authentication.
 
 ### Updating Secrets
 
 ```bash
-fly secrets set WS_SECRET=new-secret-value
-fly deploy  # Restart to apply new secrets
+# Update in your environment
+export WS_SECRET="new-secret-value"
+
+# Update Fly.io secret
+fly secrets set -a domo-tryout-app WS_SECRET="$WS_SECRET"
+
+# Redeploy
+./deploy-fly.sh
 ```
 
 ### Viewing Logs
 
 ```bash
-fly logs
+# Backend app logs
+fly logs -a domo-tryout-app
+
+# Proxy app logs
+fly logs -a domo-tryout
 ```
 
 ## Usage
@@ -39,7 +70,7 @@ Example client connection:
 
 ```javascript
 const wsProvider = new WebsocketProvider(
-  "wss://d-led-y-websocket-server.fly.dev",
+  "wss://domo-tryout.fly.dev",  // Public proxy URL
   "domo-actors-counter",
   doc,
   {
@@ -47,6 +78,8 @@ const wsProvider = new WebsocketProvider(
   }
 );
 ```
+
+**Note**: The WebSocket connection goes through the public proxy URL, which routes to the private backend via Flycast.
 
 ## Security
 
