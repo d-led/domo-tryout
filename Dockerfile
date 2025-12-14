@@ -15,7 +15,19 @@ RUN npm ci && \
     npm cache clean --force
 
 # Build the frontend (creates dist/)
+# Set build environment variables if needed
+ARG WS_SECRET=wss-changeme
+ARG WS_SERVER_URL=
+ARG VERSION=dev
+ENV WS_SECRET=${WS_SECRET}
+ENV WS_SERVER_URL=${WS_SERVER_URL}
+ENV VERSION=${VERSION}
+
 RUN npm run build
+
+# Move dist to a non-gitignored location for copying between stages
+RUN mkdir -p /build-output && \
+    cp -r dist /build-output/dist
 
 # Build stage 2: Install server dependencies
 FROM node:20-alpine AS server-builder
@@ -39,10 +51,10 @@ WORKDIR /app
 COPY --from=server-builder --chown=node:node /build-server/node_modules ./node_modules
 
 # Copy server application files
-COPY --chown=node:node server/package.json server/server.js ./
+COPY --chown=node:node server/package.json server/package-lock.json server/server.js ./
 
 # Copy built frontend from frontend-builder to dist/
-COPY --from=frontend-builder --chown=node:node /build-frontend/dist ./dist
+COPY --from=frontend-builder --chown=node:node /build-output/dist ./dist
 
 # Switch to non-root user
 USER node
@@ -52,3 +64,4 @@ EXPOSE 9870
 
 # Start the server
 CMD ["node", "server.js"]
+

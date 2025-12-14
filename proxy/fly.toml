@@ -1,0 +1,37 @@
+app = "domo-tryout"
+primary_region = "ams"
+
+[build]
+dockerfile = "Dockerfile"
+
+[env]
+OAUTH2_PROXY_EMAIL_DOMAINS = "*"
+OAUTH2_PROXY_HTTP_ADDRESS = "0.0.0.0:4180"
+OAUTH2_PROXY_PASS_ACCESS_TOKEN = "true"
+OAUTH2_PROXY_PASS_AUTHORIZATION_HEADER = "true"
+OAUTH2_PROXY_PASS_BASIC_AUTH = "true"
+OAUTH2_PROXY_PROVIDER = "github"
+OAUTH2_PROXY_REDIRECT_URL = "https://domo-tryout.fly.dev/oauth2/callback"
+OAUTH2_PROXY_SET_AUTHORIZATION_HEADER = "true"
+OAUTH2_PROXY_SET_XAUTHREQUEST = "true"
+OAUTH2_PROXY_SILENCE_PING_LOGGING = "true"
+OAUTH2_PROXY_SKIP_PROVIDER_BUTTON = "true"
+OAUTH2_PROXY_SKIP_AUTH_ROUTES = "/domo-actors-counter"
+OAUTH2_PROXY_UPSTREAMS = "http://domo-tryout-app.flycast/"
+
+[http_service]
+auto_start_machines = true
+auto_stop_machines = true
+force_https = true
+internal_port = 4_180
+min_machines_running = 0
+processes = [ "app" ]
+
+  [http_service.concurrency]
+  hard_limit = 1_000
+  soft_limit = 500
+  type = "connections"
+
+[[vm]]
+memory_mb = 256
+size = "shared-cpu-1x"

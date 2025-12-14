@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
-const BASE_URL = "http://localhost:8000";
-const WS_URL = "ws://localhost:9870";
+const BASE_URL = process.env.BASE_URL || "http://localhost:8000";
+const WS_URL = process.env.WS_URL || "ws://localhost:9870";
 
 test.describe("Multi-user counter synchronization", () => {
   test("two users can connect and see each other", async ({ browser }) => {

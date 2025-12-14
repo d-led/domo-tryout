@@ -80,13 +80,3 @@ You need to set secrets in two places for authentication to work:
    cd server
    fly secrets set WS_SECRET=your-secret-value-here
    ```
-
-2. **GitHub Repository Secrets** (for client builds):
-   - Go to your GitHub repository → Settings → Secrets and variables → Actions
-   - Add these secrets:
-     - `WS_SECRET`: Same value as set in Fly.io (must match exactly)
-     - `WS_SERVER_URL`: `https://d-led-y-websocket-server.fly.dev` (used to build WebSocket URL)
-
-   The GitHub Actions workflow (`.github/workflows/pages.yml`) will use these secrets when building the client for GitHub Pages deployment.
-
-**Important**: Both `WS_SECRET` values must match exactly, or WebSocket connections will be rejected.
