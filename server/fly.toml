@@ -20,7 +20,7 @@ primary_region = "ams"
   auto_start_machines = true
   # Number of Machines to keep running in primary region
   # Set to 1 to ensure backend is always available for proxy connections
-  min_machines_running = 1
+  min_machines_running = 0
   max_machines_running = 1
   processes = ["app"]
   [http_service.concurrency]

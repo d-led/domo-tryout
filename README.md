@@ -29,25 +29,23 @@ Browser (Client)     OAuth2 Proxy      Backend Server (Node.js)
 ```bash
 npm install
 npm run build  # Build UI to dist/
-npm run serve  # Serve UI on http://localhost:8000
-npm run server # Start backend WebSocket server on :9870 (in another terminal)
+npm start      # Start unified server (serves UI + WebSocket on :9870)
 npm test       # Playwright E2E tests
 npm run test:unit  # Vitest unit tests
 ```
 
 **Local Development**:
 
-- Run `npm run serve` in one terminal (serves UI on :8000)
-- Run `npm run server` in another terminal (serves backend on :9870)
-- Or use `npm run dev` to watch and rebuild UI files (then serve separately)
+- Run `npm start` to build and start the unified server (serves UI and WebSocket on :9870)
+- Or run `npm run dev` in one terminal to watch and rebuild UI files, then `npm start` in another terminal
 
 ## Server
 
-The WebSocket server is in the `server/` directory. For server-specific documentation, see [server/README.md](server/README.md).
+The unified server (in `server/` directory) serves both static files and WebSocket connections. For server-specific documentation, see [server/README.md](server/README.md).
 
 Quick start:
 ```bash
-npm run server    # Start Node.js server on :9870
+npm start    # Builds UI and starts server on :9870
 ```
 
 ## Deployment

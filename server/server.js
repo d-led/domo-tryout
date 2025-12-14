@@ -45,8 +45,6 @@ const rateLimitByIP = new Map();
 const ALLOWED_ORIGINS = new Set([
   "https://d-led.github.io",
   "https://domo-tryout.fly.dev",
-  "http://localhost:8000",
-  "http://127.0.0.1:8000",
   "http://localhost:9870",
   "http://127.0.0.1:9870",
 ]);

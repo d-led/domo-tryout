@@ -7,8 +7,7 @@
     "postinstall": "node scripts/build-domo-actors.js",
     "build": "node build.js",
     "dev": "node build.js --watch",
-    "serve": "npm run build && npx http-server dist -p 8000 -c-1",
-    "server": "cd server && npm install && npm start",
+    "start": "npm run build && mkdir -p server/dist && cp -r dist/* server/dist/ && cd server && npm install && npm start",
     "test": "playwright test --reporter=list",
     "test:ui": "playwright test --ui",
     "test:unit": "vitest",
@@ -26,7 +25,6 @@
     "@playwright/test": "^1.56.1",
     "@vitest/ui": "^4.0.9",
     "esbuild": "^0.27.0",
-    "http-server": "^14.1.1",
     "prettier": "^3.6.2",
     "vitest": "^4.0.9"
   }

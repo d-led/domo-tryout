@@ -8,7 +8,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI ? "list" : "html",
   use: {
-    baseURL: "http://localhost:8000",
+    baseURL: "http://localhost:9870",
     trace: "on-first-retry",
   },
   projects: [
@@ -20,26 +20,12 @@ export default defineConfig({
       },
     },
   ],
-  webServer: [
-    {
-      command: "cd server && npm install && npm start",
-      port: 9870,
-      reuseExistingServer: !process.env.CI,
-      timeout: 120 * 1000,
-      stdout: "pipe",
-      stderr: "pipe",
-    },
-    {
-      command: "npm run build && npx http-server dist -p 8000 -c-1",
-      port: 8000,
-      reuseExistingServer: !process.env.CI,
-      timeout: 120 * 1000,
-      stdout: "pipe",
-      stderr: "pipe",
-      env: {
-        ...process.env,
-        CI: process.env.CI || "false",
-      },
-    },
-  ],
+  webServer: {
+    command: "npm start",
+    port: 9870,
+    reuseExistingServer: !process.env.CI,
+    timeout: 120 * 1000,
+    stdout: "pipe",
+    stderr: "pipe",
+  },
 });
