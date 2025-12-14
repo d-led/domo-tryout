@@ -31,7 +31,9 @@ function resolveWsServer(): string {
   return INJECTED_WS_SERVER || "ws://localhost:9870";
 }
 
-// Shared secret (injected during build from CI secrets)
+// WS_SECRET is injected at build time by the server that serves this UI
+// This is secure because: 1) Backend is private (Flycast-only), 2) OAuth2 proxy controls UI access
+// The secret is only visible to authenticated users who can already access the backend
 const WS_SECRET = "__WS_SECRET__";
 
 const wsServerUrl = resolveWsServer();
@@ -40,7 +42,6 @@ if (typeof window !== "undefined") {
 }
 
 // WebsocketProvider constructs URL as: serverUrl + '/' + roomName
-// So we need: ws://host:port?secret=... and room name separately
 // The provider will create: ws://host:port/domo-actors-counter?secret=...
 const wsProvider = new WebsocketProvider(
   wsServerUrl,

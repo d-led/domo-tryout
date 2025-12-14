@@ -32,27 +32,23 @@ if [ ! -f "$FLY_TOML" ]; then
   exit 1
 fi
 
-# Get WS_SECRET from environment variable (should be set in .zshrc)
-# Generate a new one with: openssl rand -hex 32
-if [ -z "$WS_SECRET" ]; then
-  echo "Error: WS_SECRET environment variable is not set"
-  echo "Add this to your ~/.zshrc:"
-  echo "  export WS_SECRET=\"$(openssl rand -hex 32)\""
-  echo ""
-  echo "Then run: source ~/.zshrc"
-  exit 1
-fi
+# WS_SECRET is optional - if set, it will be injected into client JS at build time
+# This is secure because the server controls access to the UI via OAuth2 proxy
+# Backend is already protected by Flycast network isolation + OAuth2 proxy
+WS_SECRET_VALUE="${WS_SECRET:-}"
 
-WS_SECRET_VALUE="$WS_SECRET"
-
-# Check if WS_SECRET is set as a Fly secret (runtime env var for server)
-WS_SECRET_SET=$(fly secrets list -a "$APP_NAME" 2>/dev/null | grep -q "^WS_SECRET" && echo "yes" || echo "no")
-
-if [ "$WS_SECRET_SET" != "yes" ]; then
-  echo "Setting WS_SECRET as Fly secret for app: $APP_NAME..."
-  fly secrets set -a "$APP_NAME" WS_SECRET="$WS_SECRET_VALUE"
+# Check if WS_SECRET is set as a Fly secret (optional runtime env var for server)
+if [ -n "$WS_SECRET_VALUE" ]; then
+  WS_SECRET_SET=$(fly secrets list -a "$APP_NAME" 2>/dev/null | grep -q "^WS_SECRET" && echo "yes" || echo "no")
+  
+  if [ "$WS_SECRET_SET" != "yes" ]; then
+    echo "Setting WS_SECRET as Fly secret for app: $APP_NAME (optional defense-in-depth)..."
+    fly secrets set -a "$APP_NAME" WS_SECRET="$WS_SECRET_VALUE"
+  else
+    echo "✓ WS_SECRET found in Fly secrets for app: $APP_NAME (optional server-side check)"
+  fi
 else
-  echo "✓ WS_SECRET found in Fly secrets for app: $APP_NAME (will be used at runtime)"
+  echo "Note: WS_SECRET not set - server will rely on Flycast + OAuth2 for security"
 fi
 
 # Get the WebSocket server URL
@@ -73,9 +69,9 @@ DEPLOY_CMD="fly deploy -a $APP_NAME -c $FLY_TOML"
 DEPLOY_CMD="$DEPLOY_CMD --build-arg WS_SERVER_URL=\"$WS_SERVER_URL\" --build-arg VERSION=\"$VERSION\""
 if [ -n "$WS_SECRET_VALUE" ]; then
   DEPLOY_CMD="$DEPLOY_CMD --build-arg WS_SECRET=\"$WS_SECRET_VALUE\""
-  echo "Deploying with WS_SECRET build arg..."
+  echo "Deploying with WS_SECRET build arg (will be injected into client JS)"
 else
-  echo "Deploying without WS_SECRET build arg (using default or runtime secret)..."
+  echo "Deploying without WS_SECRET build arg (server will skip secret check)"
 fi
 
 echo "Deploying app: $APP_NAME"

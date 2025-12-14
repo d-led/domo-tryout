@@ -95,9 +95,9 @@ test.describe("Multi-user counter synchronization", () => {
 
     expect(initialCount1).toBe(initialCount2);
 
-    // User 1 increments local counter (which increments synced counter)
-    // The local counter auto-increments, so we just wait for it to increment
-    // Or we can trigger via the local counter's increment
+    // User 1 increments ephemeral  counter (which increments synced counter)
+    // The ephemeral  counter auto-increments, so we just wait for it to increment
+    // Or we can trigger via the ephemeral  counter's increment
     await page1.evaluate(() => {
       if ((window as any).counter && (window as any).counter.increment) {
         (window as any).counter.increment();

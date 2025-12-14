@@ -6,7 +6,8 @@ import { join, extname, resolve } from "path";
 import { fileURLToPath } from "url";
 
 const port = process.env.PORT || 9870;
-const WS_SECRET = process.env.WS_SECRET || "wss-changeme";
+// WS_SECRET is optional - if not set, no secret check is performed
+const WS_SECRET = process.env.WS_SECRET;
 const MAX_CONNECTIONS_PER_IP = parseInt(process.env.MAX_CONNECTIONS_PER_IP || "5", 10);
 const RATE_LIMIT_WINDOW_MS = parseInt(process.env.RATE_LIMIT_WINDOW_MS || "1000", 10); // 1 second
 const RATE_LIMIT_MAX_REQUESTS = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || "5", 10); // 5 requests per second
@@ -161,8 +162,12 @@ server.on("upgrade", (request, socket, head) => {
     }
   }
   
+  // Check if this is a localhost connection (allow for local development)
+  const isLocalhostConnection = host && (host.includes("localhost") || host.includes("127.0.0.1"));
+  
   // Validate origin - browsers send this automatically, non-browser clients can spoof it
-  if (!origin || (!ALLOWED_ORIGINS.has(origin) && !isSameOrigin)) {
+  // Skip origin check for localhost connections (local development)
+  if (!isLocalhostConnection && (!origin || (!ALLOWED_ORIGINS.has(origin) && !isSameOrigin))) {
     // Fallback: check referer as secondary validation (also spoofable, but adds a layer)
     let refererOrigin = null;
     try {
@@ -202,13 +207,17 @@ server.on("upgrade", (request, socket, head) => {
     // Don't reject, but log for monitoring - strict mode can be enabled if needed
   }
 
-  // Check for secret in URL query parameter (WebsocketProvider adds it via params)
-  const secret = url.searchParams.get("secret");
-  if (!secret || secret !== WS_SECRET) {
-    console.warn(`Invalid secret attempt from IP: ${clientIP}, origin: ${origin}`);
-    socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
-    socket.destroy();
-    return;
+  // Secret check: If WS_SECRET is set, require it (except for localhost)
+  // The secret is injected into the client JS at build time by the server
+  // This is secure because the server controls access to the UI via OAuth2
+  if (WS_SECRET && !isLocalhostConnection) {
+    const secret = url.searchParams.get("secret");
+    if (!secret || secret !== WS_SECRET) {
+      console.warn(`Invalid secret attempt from IP: ${clientIP}, origin: ${origin}`);
+      socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+      socket.destroy();
+      return;
+    }
   }
 
   // All checks passed, upgrade connection

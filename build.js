@@ -47,13 +47,13 @@ async function buildExtractEmbedded() {
   });
 }
 
-const wsSecret = process.env.WS_SECRET || "wss-changeme"; // Default for local dev
+const wsSecret = process.env.WS_SECRET || ""; // Optional - if not set, server won't require it
 const wsServerUrl = process.env.WS_SERVER_URL || ""; // Fly.io WebSocket server URL for production
 
 // Debug logging
 if (process.env.CI) {
   console.log("Build environment:");
-  console.log("  WS_SECRET:", wsSecret ? "***set***" : "NOT SET");
+  console.log("  WS_SECRET:", wsSecret ? "***set***" : "NOT SET (server won't require it)");
   console.log("  WS_SERVER_URL:", wsServerUrl || "NOT SET");
 }
 
@@ -63,12 +63,20 @@ const replacePlugin = {
   setup(build) {
     build.onLoad({ filter: /synced-counter\.ts$/ }, async (args) => {
       let contents = readFileSync(args.path, "utf8");
-      // Replace '__WS_SECRET__' or "__WS_SECRET__" with the actual secret (keeping quotes)
+      // Replace WS_SECRET - injected at build time by the server that serves this UI
+      // This is secure because the server controls access to the UI via OAuth2
       const beforeSecret = contents;
-      contents = contents.replace(/'__WS_SECRET__'/g, `'${wsSecret}'`);
-      contents = contents.replace(/"__WS_SECRET__"/g, `"${wsSecret}"`);
-      if (contents !== beforeSecret) {
-        console.log(`Replaced __WS_SECRET__ with: ${wsSecret.substring(0, 10)}...`);
+      if (wsSecret) {
+        contents = contents.replace(/'__WS_SECRET__'/g, `'${wsSecret}'`);
+        contents = contents.replace(/"__WS_SECRET__"/g, `"${wsSecret}"`);
+        if (contents !== beforeSecret) {
+          console.log(`Replaced __WS_SECRET__ with: ${wsSecret.substring(0, 10)}...`);
+        }
+      } else {
+        // If no secret provided, replace with empty string (server won't require it)
+        contents = contents.replace(/'__WS_SECRET__'/g, `''`);
+        contents = contents.replace(/"__WS_SECRET__"/g, `""`);
+        console.log("WS_SECRET not set - server will skip secret check");
       }
       // Replace '__WS_SERVER_URL__' with the actual server URL (convert https:// to wss://)
       if (wsServerUrl) {

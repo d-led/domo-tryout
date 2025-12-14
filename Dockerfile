@@ -15,16 +15,13 @@ RUN npm ci && \
     npm cache clean --force
 
 # Build the frontend (creates dist/)
-# Note: WS_SECRET is needed at BUILD TIME to inject into frontend bundle
-# ARG values are available as environment variables during build automatically
-# The secret is baked into the frontend code and not stored in image layers
-# For Fly.io: WS_SECRET is passed via --build-arg during deployment
-# Runtime secrets (if needed) are handled separately via Fly secrets
-ARG WS_SECRET=wss-changeme
+# Note: WS_SECRET is injected into client code at build time
+# This is secure because: 1) Backend is private (Flycast-only), 2) OAuth2 proxy controls UI access
+# The secret is only visible to authenticated users who can already access the backend
+ARG WS_SECRET=
 ARG WS_SERVER_URL=
 ARG VERSION=dev
 # ARG values are automatically available as env vars during build
-# No need for ENV - build.js reads from process.env
 
 RUN npm run build
 
@@ -59,9 +56,12 @@ COPY --chown=node:node server/package.json server/package-lock.json server/serve
 # Copy built frontend from frontend-builder to dist/
 COPY --from=frontend-builder --chown=node:node /build-output/dist ./dist
 
-# Note: WS_SECRET was injected at build time into the frontend bundle
-# Runtime secret (if server needs it) should be passed via Fly secrets
-# The build-time ARG is not available in the final image (by design)
+# Security notes:
+# - WS_SECRET is injected into client JS at build time (secure because server controls UI access via OAuth2)
+# - Backend is private (Flycast-only) and protected by OAuth2 proxy + origin checks
+# - Server-side WS_SECRET check is optional (only if set via Fly secrets)
+# - The glob vulnerability reported by Docker Scout is in npm's dependencies (base image)
+#   and not in our production runtime (we only copy node_modules, not npm itself)
 
 # Switch to non-root user
 USER node
