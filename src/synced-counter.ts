@@ -31,8 +31,8 @@ function resolveWsServer(): string {
   return INJECTED_WS_SERVER || "ws://localhost:9870";
 }
 
-// WS_SECRET is injected at build time by the server that serves this UI
-// This is secure because: 1) Backend is private (Flycast-only), 2) OAuth2 proxy controls UI access
+// WS_SECRET is injected at SERVE time by the server (not build time)
+// This is more secure: secret is not stored on disk, injected dynamically when serving bundle.js
 // The secret is only visible to authenticated users who can already access the backend
 const WS_SECRET = "__WS_SECRET__";
 

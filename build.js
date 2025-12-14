@@ -63,21 +63,9 @@ const replacePlugin = {
   setup(build) {
     build.onLoad({ filter: /synced-counter\.ts$/ }, async (args) => {
       let contents = readFileSync(args.path, "utf8");
-      // Replace WS_SECRET - injected at build time by the server that serves this UI
-      // This is secure because the server controls access to the UI via OAuth2
-      const beforeSecret = contents;
-      if (wsSecret) {
-        contents = contents.replace(/'__WS_SECRET__'/g, `'${wsSecret}'`);
-        contents = contents.replace(/"__WS_SECRET__"/g, `"${wsSecret}"`);
-        if (contents !== beforeSecret) {
-          console.log(`Replaced __WS_SECRET__ with: ${wsSecret.substring(0, 10)}...`);
-        }
-      } else {
-        // If no secret provided, replace with empty string (server won't require it)
-        contents = contents.replace(/'__WS_SECRET__'/g, `''`);
-        contents = contents.replace(/"__WS_SECRET__"/g, `""`);
-        console.log("WS_SECRET not set - server will skip secret check");
-      }
+      // Keep __WS_SECRET__ placeholder - will be injected at SERVE time by the server
+      // This is more secure: secret is not stored on disk, injected dynamically at runtime
+      // No replacement needed here - server will inject it when serving bundle.js
       // Replace '__WS_SERVER_URL__' with the actual server URL (convert https:// to wss://)
       if (wsServerUrl) {
         const wssUrl = wsServerUrl.replace(/^https?:\/\//, "wss://");

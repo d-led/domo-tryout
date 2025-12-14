@@ -32,8 +32,8 @@ if [ ! -f "$FLY_TOML" ]; then
   exit 1
 fi
 
-# WS_SECRET is optional - if set, it will be injected into client JS at build time
-# This is secure because the server controls access to the UI via OAuth2 proxy
+# WS_SECRET is optional - if set, it will be injected into client JS at SERVE time (not build time)
+# This is more secure: secret is not stored on disk, injected dynamically when serving bundle.js
 # Backend is already protected by Flycast network isolation + OAuth2 proxy
 WS_SECRET_VALUE="${WS_SECRET:-}"
 
@@ -64,15 +64,10 @@ echo "  VERSION: $VERSION"
 echo "  WS_SECRET: ${WS_SECRET_VALUE:+***set***}"
 echo ""
 
-# Build deploy command
+# Build deploy command (WS_SECRET not needed for build - injected at serve time)
 DEPLOY_CMD="fly deploy -a $APP_NAME -c $FLY_TOML"
 DEPLOY_CMD="$DEPLOY_CMD --build-arg WS_SERVER_URL=\"$WS_SERVER_URL\" --build-arg VERSION=\"$VERSION\""
-if [ -n "$WS_SECRET_VALUE" ]; then
-  DEPLOY_CMD="$DEPLOY_CMD --build-arg WS_SECRET=\"$WS_SECRET_VALUE\""
-  echo "Deploying with WS_SECRET build arg (will be injected into client JS)"
-else
-  echo "Deploying without WS_SECRET build arg (server will skip secret check)"
-fi
+echo "Deploying (WS_SECRET will be injected at serve time via Fly secrets)"
 
 echo "Deploying app: $APP_NAME"
 eval $DEPLOY_CMD

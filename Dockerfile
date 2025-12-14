@@ -15,10 +15,8 @@ RUN npm ci && \
     npm cache clean --force
 
 # Build the frontend (creates dist/)
-# Note: WS_SECRET is injected into client code at build time
-# This is secure because: 1) Backend is private (Flycast-only), 2) OAuth2 proxy controls UI access
-# The secret is only visible to authenticated users who can already access the backend
-ARG WS_SECRET=
+# Note: WS_SECRET is NOT injected at build time - placeholder remains in bundle.js
+# Secret is injected at SERVE time by the server (more secure - not stored on disk)
 ARG WS_SERVER_URL=
 ARG VERSION=dev
 # ARG values are automatically available as env vars during build
@@ -57,7 +55,7 @@ COPY --chown=node:node server/package.json server/package-lock.json server/serve
 COPY --from=frontend-builder --chown=node:node /build-output/dist ./dist
 
 # Security notes:
-# - WS_SECRET is injected into client JS at build time (secure because server controls UI access via OAuth2)
+# - WS_SECRET is injected at SERVE time (not build time) - secret not stored on disk
 # - Backend is private (Flycast-only) and protected by OAuth2 proxy + origin checks
 # - Server-side WS_SECRET check is optional (only if set via Fly secrets)
 # - The glob vulnerability reported by Docker Scout is in npm's dependencies (base image)

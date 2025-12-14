@@ -331,13 +331,24 @@ server.on("request", (request, response) => {
 
 function serveFile(filePath, response) {
   try {
-    const content = readFileSync(filePath);
+    let content = readFileSync(filePath);
     const ext = extname(filePath);
     const contentType = mimeTypes[ext] || "application/octet-stream";
     
-    // Add cache headers for static assets (except HTML)
+    // Inject WS_SECRET at serve time for bundle.js (not stored on disk)
+    if (ext === ".js" && filePath.includes("bundle.js") && WS_SECRET) {
+      const secretPlaceholder = /['"]__WS_SECRET__['"]/g;
+      if (secretPlaceholder.test(content.toString())) {
+        content = Buffer.from(
+          content.toString().replace(secretPlaceholder, `'${WS_SECRET}'`),
+          "utf8"
+        );
+      }
+    }
+    
+    // Add cache headers for static assets (except HTML and bundle.js which has secrets)
     const headers = { "Content-Type": contentType };
-    if (ext !== ".html") {
+    if (ext !== ".html" && !(ext === ".js" && filePath.includes("bundle.js"))) {
       headers["Cache-Control"] = "public, max-age=31536000, immutable";
     } else {
       headers["Cache-Control"] = "no-cache";
