@@ -69,3 +69,7 @@ a svg {
 a:hover svg {
   opacity: 1;
 }
+
+body {
+  touch-action: manipulation;
+}
